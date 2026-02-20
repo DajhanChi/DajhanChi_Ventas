@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de Gestión de Ventas Profesional">
+    <meta name="theme-color" content="#3b82f6">
+    <title>{{ title or "Ventas" }} - Sistema de Gestión</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% if session.get('user_id') %}
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 28px; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">D</div>
+            <div style="flex: 1;">
+                <h2 style="margin: 0; font-size: 16px; color: white;">DajhanChi</h2>
+                <p style="margin: 4px 0 0 0; font-size: 11px; color: rgba(255,255,255,0.7);">Gestión de Ventas</p>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('dashboard') }}" class="nav-item" {% if request.endpoint == 'dashboard' %}data-active="true"{% endif %}>
+                <span>📈</span>
+                <span>Inicio</span>
+            </a>
+            <a href="{{ url_for('products') }}" class="nav-item" {% if request.endpoint == 'products' %}data-active="true"{% endif %}>
+                <span>📦</span>
+                <span>Productos</span>
+            </a>
+            <a href="{{ url_for('sales') }}" class="nav-item" {% if request.endpoint == 'sales' %}data-active="true"{% endif %}>
+                <span>💰</span>
+                <span>Ventas</span>
+            </a>
+            <a href="{{ url_for('debts') }}" class="nav-item" {% if request.endpoint in ['debts', 'payment_register'] %}data-active="true"{% endif %}>
+                <span>📝</span>
+                <span>Deudas</span>
+            </a>
+            <a href="{{ url_for('reports') }}" class="nav-item" {% if request.endpoint == 'reports' %}data-active="true"{% endif %}>
+                <span>📋</span>
+                <span>Reportes</span>
+            </a>
+            <a href="{{ url_for('users') }}" class="nav-item" {% if request.endpoint == 'users' %}data-active="true"{% endif %}>
+                <span>👥</span>
+                <span>Usuarios</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">{{ session.get('username', 'U')[0].upper() }}</div>
+                <div>
+                    <p style="margin: 0; font-size: 12px; color: white; font-weight: 600;">{{ session.get('username', 'Usuario') }}</p>
+                    <p style="margin: 2px 0 0 0; font-size: 11px; color: rgba(255,255,255,0.7);">{{ session.get('role', 'user') }}</p>
+                </div>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-btn">🚪 Salir</a>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="toast-container" id="toastContainer">
+            {% for category, message in messages %}
+            <div class="toast {{ category }}" role="status" aria-live="polite" data-timeout="4500">
+                <div class="toast-icon">
+                    {% if category == 'success' %}
+                        ✓
+                    {% elif category == 'error' %}
+                        ✕
+                    {% else %}
+                        •
+                    {% endif %}
+                </div>
+                <div class="toast-message">{{ message }}</div>
+                <button type="button" class="toast-close" aria-label="Cerrar">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% else %}
+<main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="toast-container" id="toastContainer">
+        {% for category, message in messages %}
+        <div class="toast {{ category }}" role="status" aria-live="polite" data-timeout="4500">
+            <div class="toast-icon">
+                {% if category == 'success' %}
+                    ✓
+                {% elif category == 'error' %}
+                    ✕
+                {% else %}
+                    •
+                {% endif %}
+            </div>
+            <div class="toast-message">{{ message }}</div>
+            <button type="button" class="toast-close" aria-label="Cerrar">×</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% block login_content %}{% endblock %}
+</main>
+{% endif %}
+
+<div id="appConfirm" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle" aria-describedby="appConfirmDesc">
+        <div class="modal-body">
+            <h3 id="appConfirmTitle">Confirmar accion</h3>
+            <p id="appConfirmDesc">¿Deseas continuar?</p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="button secondary" id="appConfirmCancel">Cancelar</button>
+            <button type="button" class="button danger" id="appConfirmOk">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    const toastContainer = document.getElementById('toastContainer');
+    if (toastContainer) {
+        toastContainer.querySelectorAll('.toast').forEach((toast) => {
+            const closeBtn = toast.querySelector('.toast-close');
+            const timeout = parseInt(toast.getAttribute('data-timeout') || '4500', 10);
+            const removeToast = () => {
+                toast.classList.add('toast-hide');
+                setTimeout(() => toast.remove(), 250);
+            };
+            if (closeBtn) {
+                closeBtn.addEventListener('click', removeToast);
+            }
+            if (timeout > 0) {
+                setTimeout(removeToast, timeout);
+            }
+        });
+    }
+
+    const confirmModal = document.getElementById('appConfirm');
+    const confirmTitle = document.getElementById('appConfirmTitle');
+    const confirmDesc = document.getElementById('appConfirmDesc');
+    const confirmOk = document.getElementById('appConfirmOk');
+    const confirmCancel = document.getElementById('appConfirmCancel');
+    let pendingForm = null;
+    let pendingLink = null;
+
+    const closeConfirm = () => {
+        if (!confirmModal) return;
+        confirmModal.classList.remove('open');
+        confirmModal.setAttribute('aria-hidden', 'true');
+        pendingForm = null;
+        pendingLink = null;
+    };
+
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-confirm]');
+        if (!trigger) return;
+
+        event.preventDefault();
+        const title = trigger.getAttribute('data-confirm-title') || 'Confirmar accion';
+        const message = trigger.getAttribute('data-confirm') || '¿Deseas continuar?';
+        if (confirmTitle) confirmTitle.textContent = title;
+        if (confirmDesc) confirmDesc.textContent = message;
+
+        pendingForm = trigger.closest('form');
+        pendingLink = trigger.tagName === 'A' ? trigger.getAttribute('href') : null;
+
+        if (confirmModal) {
+            confirmModal.classList.add('open');
+            confirmModal.setAttribute('aria-hidden', 'false');
+        }
+    });
+
+    if (confirmOk) {
+        confirmOk.addEventListener('click', () => {
+            if (pendingForm) {
+                pendingForm.submit();
+                return;
+            }
+            if (pendingLink) {
+                window.location.href = pendingLink;
+                return;
+            }
+            closeConfirm();
+        });
+    }
+
+    if (confirmCancel) {
+        confirmCancel.addEventListener('click', closeConfirm);
+    }
+
+    if (confirmModal) {
+        confirmModal.addEventListener('click', (event) => {
+            if (event.target === confirmModal) closeConfirm();
+        });
+    }
+})();
+</script>
+</body>
+</html>

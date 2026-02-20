@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>💰 Registro de Ventas</h1>
+        <p style="color: #6b7280; margin: 4px 0 0 0;">Visualiza y gestiona todas tus ventas</p>
+    </div>
+    <a class="button" href="{{ url_for('sale_new') }}">➕ Nueva Venta</a>
+</div>
+
+<div class="card">
+    {% if sales %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e5e7eb;">
+                    <th style="text-align: center; width: 30px; padding: 8px;">📌</th>
+                    <th style="text-align: left; padding: 12px;">Fecha</th>
+                    <th style="text-align: left; padding: 12px;">Cliente</th>
+                    <th style="text-align: center; padding: 12px;">Método</th>
+                    <th style="text-align: center; padding: 12px;">Estado Pago</th>
+                    <th style="text-align: right; padding: 12px;">Total</th>
+                    <th style="text-align: center; padding: 8px;">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for sale in sales %}
+                <tr style="border-bottom: 1px solid #f3f4f6; cursor: pointer;" data-sale-id="{{ sale.id }}" class="sale-row">
+                    <td style="text-align: center; padding: 8px 6px; vertical-align: middle;">
+                        <span id="icon_{{ sale.id }}" style="color: #6b7280; font-size: 12px;">▶</span>
+                    </td>
+                    <td style="padding: 8px 10px; vertical-align: middle;">{{ sale.created_at.strftime("%d/%m/%Y %H:%M") }}</td>
+                    <td style="padding: 8px 10px; font-weight: 500; vertical-align: middle;">{{ sale.customer_name or "Anónimo" }}</td>
+                    <td style="text-align: center; padding: 8px 10px; vertical-align: middle;">
+                        {% if sale.payment_method == 'efectivo' or not sale.payment_method %}
+                            <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">💵 Efectivo</span>
+                        {% elif sale.payment_method == 'yape' %}
+                            <span style="background: #dbeafe; color: #0c4a6e; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">📱 Yape</span>
+                        {% elif sale.payment_method == 'fiado' %}
+                            <span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">📝 Fiado</span>
+                        {% else %}
+                            <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">💵 {{ sale.payment_method }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center; padding: 8px 10px; vertical-align: middle;">
+                        {% if sale.payment_status == 'pagado' %}
+                            <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">✅ Pagado</span>
+                        {% elif sale.payment_status == 'pendiente' %}
+                            <span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">⏳ Pendiente</span>
+                        {% elif sale.payment_status == 'parcial' %}
+                            <span style="background: #dbeafe; color: #0c4a6e; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">💵 Parcial</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; padding: 8px 10px; color: #10b981; font-weight: 600; vertical-align: middle;">{{ sale.total_cents | money }}</td>
+                    <td style="text-align: center; padding: 6px; vertical-align: middle;">
+                        <form method="post" action="{{ url_for('sale_delete', sale_id=sale.id) }}" style="display: inline; margin: 0;">
+                            <button type="submit" data-confirm="¿Eliminar esta venta y devolver stock?" data-confirm-title="Eliminar venta" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 16px;" title="Eliminar">🗑️</button>
+                        </form>
+                    </td>
+                </tr>
+                <tr id="details_{{ sale.id }}" style="display: none; background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                    <td colspan="7" style="padding: 16px;">
+                        <div style="display: grid; gap: 16px;">
+                            <!-- Productos -->
+                            <div style="background: white; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 4px;">
+                                <h4 style="margin: 0 0 12px 0; color: #1f2937;">📦 Productos en esta venta:</h4>
+                                <div style="display: grid; gap: 8px;">
+                                    {% for item in sale.items %}
+                                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; padding: 8px; background: #f3f4f6; border-radius: 4px; font-size: 14px;">
+                                        <div>📦 <strong>{{ item.product.name }}</strong></div>
+                                        <div>Cantidad: <strong>{{ item.qty }}</strong></div>
+                                        <div>P.U.: <strong>{{ item.unit_price_cents | money }}</strong></div>
+                                        <div style="text-align: right;">Subtotal: <strong>{{ item.line_total_cents | money }}</strong></div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <!-- Información de pago si es fiado -->
+                            {% if sale.payment_method == 'fiado' %}
+                            <div style="background: {% if sale.payment_status == 'pendiente' %}#fee2e2{% elif sale.payment_status == 'parcial' %}#dbeafe{% else %}#dcfce7{% endif %}; padding: 12px; border-radius: 4px; border-left: 4px solid {% if sale.payment_status == 'pendiente' %}#ef4444{% elif sale.payment_status == 'parcial' %}#3b82f6{% else %}#10b981{% endif %};">
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                                    <div>
+                                        <p style="margin: 0; font-size: 12px; color: #6b7280;">Total venta</p>
+                                        <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">{{ sale.total_cents | money }}</p>
+                                    </div>
+                                    <div>
+                                        <p style="margin: 0; font-size: 12px; color: #6b7280;">Pagado</p>
+                                        <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700; color: #10b981;">{{ sale.paid_cents | money }}</p>
+                                    </div>
+                                    <div>
+                                        <p style="margin: 0; font-size: 12px; color: #6b7280;">Pendiente</p>
+                                        <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700; color: #ef4444;">{{ sale.pending_cents | money }}</p>
+                                    </div>
+                                </div>
+                                {% if sale.payment_status != 'pagado' %}
+                                <a href="{{ url_for('payment_register', sale_id=sale.id) }}" class="button" style="display: inline-block; margin-top: 12px; padding: 8px 16px; font-size: 14px;">💳 Registrar Pago</a>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 48px 0;">
+        <p style="font-size: 48px; margin: 0;">📭</p>
+        <h3 style="margin: 16px 0 8px 0;">No hay ventas registradas</h3>
+        <p style="color: #6b7280; margin: 0 0 20px 0;">Inicia tu primer registro de venta</p>
+        <a class="button" href="{{ url_for('sale_new') }}">➕ Registrar Venta</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleDetails(event, saleId) {
+    // No hacer nada si el click fue en un botón o form
+    if (event.target.tagName === 'BUTTON' || event.target.closest('form')) {
+        return;
+    }
+    
+    const details = document.getElementById('details_' + saleId);
+    const icon = document.getElementById('icon_' + saleId);
+    
+    if (details.style.display === 'none') {
+        details.style.display = 'table-row';
+        icon.textContent = '▼';
+    } else {
+        details.style.display = 'none';
+        icon.textContent = '▶';
+    }
+}
+
+// Agregar event listeners a todas las filas
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('.sale-row');
+    rows.forEach(function(row) {
+        row.addEventListener('click', function(event) {
+            const saleId = this.getAttribute('data-sale-id');
+            toggleDetails(event, saleId);
+        });
+    });
+});
+</script>
+{% endblock %}

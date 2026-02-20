@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>💳 Registrar Pago</h1>
+        <p style="color: #6b7280; margin: 4px 0 0 0;">Registra un pago para una venta fiada</p>
+    </div>
+    <a class="button secondary" href="{{ url_for('debts') }}">← Volver a Deudas</a>
+</div>
+
+<div class="card">
+    <!-- Información de la venta -->
+    <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+        <h3 style="margin: 0 0 12px 0; color: #1f2937;">Información de la Venta</h3>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+            <div>
+                <p style="margin: 0; color: #6b7280; font-size: 13px;">Cliente</p>
+                <p style="margin: 4px 0 0 0; font-weight: 600; font-size: 16px;">{{ sale.customer_name or "Sin nombre" }}</p>
+            </div>
+            <div>
+                <p style="margin: 0; color: #6b7280; font-size: 13px;">Fecha de venta</p>
+                <p style="margin: 4px 0 0 0; font-weight: 600; font-size: 16px;">{{ sale.created_at.strftime("%d/%m/%Y %H:%M") }}</p>
+            </div>
+            <div>
+                <p style="margin: 0; color: #6b7280; font-size: 13px;">Total de la venta</p>
+                <p style="margin: 4px 0 0 0; font-weight: 600; font-size: 18px; color: #1f2937;">{{ sale.total_cents | money }}</p>
+            </div>
+            <div>
+                <p style="margin: 0; color: #6b7280; font-size: 13px;">Ya pagado</p>
+                <p style="margin: 4px 0 0 0; font-weight: 600; font-size: 18px; color: #10b981;">{{ sale.paid_cents | money }}</p>
+            </div>
+            <div style="grid-column: span 2;">
+                <p style="margin: 0; color: #6b7280; font-size: 13px;">Monto pendiente</p>
+                <p style="margin: 4px 0 0 0; font-weight: 700; font-size: 24px; color: #ef4444;">{{ sale.pending_cents | money }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Productos de la venta -->
+    <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #3b82f6;">
+        <h4 style="margin: 0 0 12px 0; color: #1f2937;">📦 Productos vendidos:</h4>
+        <div style="display: grid; gap: 8px;">
+            {% for item in sale.items %}
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; padding: 8px; background: white; border-radius: 4px; font-size: 14px;">
+                <div>📦 <strong>{{ item.product.name }}</strong></div>
+                <div>Cantidad: <strong>{{ item.qty }}</strong></div>
+                <div>P.U.: <strong>{{ item.unit_price_cents | money }}</strong></div>
+                <div style="text-align: right;">Subtotal: <strong>{{ item.line_total_cents | money }}</strong></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Historial de pagos anteriores -->
+    {% if sale.payments %}
+    <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #10b981;">
+        <h4 style="margin: 0 0 12px 0; color: #1f2937;">💰 Pagos anteriores:</h4>
+        <div style="display: grid; gap: 8px;">
+            {% for payment in sale.payments %}
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 2fr; gap: 12px; padding: 8px; background: white; border-radius: 4px; font-size: 14px; align-items: center;">
+                <div>{{ payment.created_at.strftime("%d/%m/%Y %H:%M") }}</div>
+                <div><strong style="color: #10b981;">{{ payment.amount_cents | money }}</strong></div>
+                <div style="font-size: 12px;">
+                    {% if payment.payment_method == 'efectivo' %}
+                        <span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px;">💵 Efectivo</span>
+                    {% elif payment.payment_method == 'yape' %}
+                        <span style="background: #dbeafe; color: #0c4a6e; padding: 2px 6px; border-radius: 4px;">📱 Yape</span>
+                    {% else %}
+                        <span>{{ payment.payment_method }}</span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 13px; color: #6b7280;">{{ payment.notes or "" }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Formulario de pago -->
+    <form method="post" style="background: white;">
+        <h3 style="margin: 0 0 20px 0; color: #1f2937;">💳 Registrar nuevo pago</h3>
+        
+        <div class="form-group">
+            <label for="amount">Monto a pagar *</label>
+            <input type="text" id="amount" name="amount" required 
+                   placeholder="0.00" 
+                   style="font-size: 18px; font-weight: 600;"
+                   pattern="^\d+(\.\d{1,2})?$"
+                   title="Ingresa un monto válido (ej: 50.00)"
+                   data-pending="{{ sale.pending_cents }}">
+            <small style="color: #6b7280;">Máximo: {{ sale.pending_cents | money }}</small>
+        </div>
+
+        <div class="form-group">
+            <label for="payment_method">Método de pago *</label>
+            <select id="payment_method" name="payment_method" required>
+                <option value="efectivo">💵 Efectivo</option>
+                <option value="yape">📱 Yape</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notas (opcional)</label>
+            <textarea id="notes" name="notes" rows="3" placeholder="Ej: Pago parcial acordado, primera cuota, etc."></textarea>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <button type="submit" class="button" style="flex: 1;">💾 Registrar Pago</button>
+            <a href="{{ url_for('debts') }}" class="button secondary" style="flex: 0 0 auto;">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+<script>
+(function() {
+    const pendingCents = parseInt(document.getElementById('amount').getAttribute('data-pending'));
+    const pending = pendingCents / 100;
+    
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const amountInput = document.getElementById('amount');
+        const amount = parseFloat(amountInput.value);
+        
+        if (amount > pending) {
+            e.preventDefault();
+            alert('El monto no puede exceder la deuda pendiente de ' + pending.toFixed(2));
+            amountInput.focus();
+        }
+    });
+
+    // Sugerir pago total
+    document.addEventListener('DOMContentLoaded', function() {
+        const amountInput = document.getElementById('amount');
+    
+        // Crear botón de sugerencia
+        const suggestButton = document.createElement('button');
+        suggestButton.type = 'button';
+        suggestButton.textContent = '💡 Pagar el total (' + pending.toFixed(2) + ')';
+        suggestButton.className = 'button secondary';
+        suggestButton.style.marginTop = '8px';
+        suggestButton.style.fontSize = '13px';
+        suggestButton.style.padding = '6px 12px';
+        
+        suggestButton.addEventListener('click', function() {
+            amountInput.value = pending.toFixed(2);
+        });
+        
+        amountInput.parentElement.appendChild(suggestButton);
+    });
+})();
+</script>
+{% endblock %}

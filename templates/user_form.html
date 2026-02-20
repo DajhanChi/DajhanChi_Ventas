@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <h1>👥 {{ "✏️ Editar Usuario" if user else "➕ Nuevo Usuario" }}</h1>
+</div>
+
+<div style="max-width: 600px;">
+    <form method="post" class="card">
+        <label for="username">👤 Nombre de Usuario <span style="color: #ef4444;">*</span></label>
+        <input id="username" name="username" type="text" placeholder="Ej: juan.perez" required value="{{ user.username if user else '' }}">
+        <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">Mínimo 3 caracteres, sin espacios</p>
+
+        {% if not user %}
+        <label for="password">🔐 Contraseña <span style="color: #ef4444;">*</span></label>
+        <input id="password" name="password" type="password" placeholder="Mínimo 6 caracteres" required>
+        <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">La contraseña debe tener al menos 6 caracteres</p>
+        {% endif %}
+
+        <label for="role">🎯 Rol <span style="color: #ef4444;">*</span></label>
+        <select id="role" name="role" required>
+            <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>Administrador</option>
+            <option value="vendor" {% if user and user.role == 'vendor' %}selected{% endif %}>Vendedor</option>
+            <option value="manager" {% if user and user.role == 'manager' %}selected{% endif %}>Gerente</option>
+        </select>
+
+        {% if user %}
+        <label style="display: flex; align-items: center; margin-top: 18px;">
+            <input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %} style="width: auto; margin: 0; margin-right: 8px;">
+            <span style="font-weight: 600; color: var(--dark);">Usuario activo</span>
+        </label>
+        <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">Desactiva el usuario para bloquear su acceso</p>
+        {% endif %}
+
+        <div class="actions">
+            <button type="submit" style="width: 100%;">✅ {{ "Actualizar Usuario" if user else "Crear Usuario" }}</button>
+        </div>
+        <a class="button secondary" style="width: 100%; text-align: center;" href="{{ url_for('users') }}">← Volver</a>
+    </form>
+</div>
+{% endblock %}

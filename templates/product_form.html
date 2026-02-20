@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <h1>📦 {{ "✏️ Editar Producto" if product else "➕ Nuevo Producto" }}</h1>
+</div>
+
+<div style="max-width: 600px;">
+    <form method="post" class="card">
+        <label for="name">📝 Nombre del Producto <span style="color: #ef4444;">*</span></label>
+        <input id="name" name="name" type="text" placeholder="Ej: Laptop HP 15 Pulgadas" required value="{{ product.name if product else '' }}">
+
+        <label for="sku">🏷️ SKU / Código</label>
+        <input id="sku" name="sku" type="text" placeholder="Ej: SKU-001" value="{{ product.sku if product else '' }}">
+
+        <label>💰 Costo Unitario <span style="color: #ef4444;">*</span></label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end;">
+            <div>
+                <label for="package_cost" style="font-size: 13px; color: #6b7280; display: block; margin-bottom: 4px;">Costo del Paquete</label>
+                <input id="package_cost" name="package_cost" type="number" step="0.01" placeholder="0.00" required value="{{ (product.package_cost_cents / 100) if product else '' }}" style="width: 100%;" onchange="calcularCostoUnitario()">
+            </div>
+            <div>
+                <label for="package_qty" style="font-size: 13px; color: #6b7280; display: block; margin-bottom: 4px;">Cantidad en Paquete</label>
+                <input id="package_qty" name="package_qty" type="number" min="1" placeholder="1" required value="{{ product.package_quantity if product else 1 }}" style="width: 100%;" onchange="calcularCostoUnitario()">
+            </div>
+        </div>
+        <div style="background: #f3f4f6; border-left: 4px solid #3b82f6; padding: 8px 12px; margin: 8px 0; border-radius: 4px;">
+            <p style="font-size: 12px; color: #6b7280; margin: 0 0 4px 0;">📊 Costo Unitario Calculado</p>
+            <p style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">$<span id="cost_display">0.00</span></p>
+            <input id="cost" name="cost" type="hidden" value="{{ (product.cost_cents / 100) if product else '0' }}">
+        </div>
+
+        <label for="price">💵 Precio Unitario <span style="color: #ef4444;">*</span></label>
+        <input id="price" name="price" type="number" step="0.01" placeholder="0.00" required value="{{ (product.price_cents / 100) if product else '' }}">
+        <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">Precio de venta en moneda local</p>
+
+        <label for="stock">📦 Cantidad en Stock <span style="color: #ef4444;">*</span></label>
+        <input id="stock" name="stock" type="number" min="0" placeholder="0" required value="{{ product.stock if product else 0 }}">
+
+        <div class="actions">
+            <button type="submit" style="width: 100%;">✅ {{ "Actualizar Producto" if product else "Crear Producto" }}</button>
+        </div>
+        <a class="button secondary" style="width: 100%; text-align: center;" href="{{ url_for('products') }}">← Volver</a>
+    </form>
+</div>
+
+<script>
+function calcularCostoUnitario() {
+    const packageCost = parseFloat(document.getElementById('package_cost').value) || 0;
+    const packageQty = parseInt(document.getElementById('package_qty').value) || 1;
+    const costUnitario = packageQty > 0 ? (packageCost / packageQty) : 0;
+    
+    document.getElementById('cost_display').textContent = costUnitario.toFixed(2);
+    document.getElementById('cost').value = costUnitario.toFixed(2);
+}
+
+// Calcular al cargar la página
+document.addEventListener('DOMContentLoaded', calcularCostoUnitario);
+</script>
+{% endblock %}

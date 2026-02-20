@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block login_content %}
+<div class="card narrow" style="background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border: none;">
+    <div style="text-align: center; margin-bottom: 32px;">
+        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 48px; color: white; box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4); margin: 0 auto 24px;">D</div>
+        <h1 style="margin: 0 0 8px 0; font-size: 28px;">DajhanChi_Ventas</h1>
+        <p style="color: #6b7280; margin: 0; font-weight: 500;">Sistema de Gestión de Ventas</p>
+    </div>
+    
+    <form method="post">
+        <label for="username">👤 Usuario</label>
+        <input id="username" name="username" type="text" placeholder="Ingresa tu usuario" required autocomplete="username">
+
+        <label for="password">🔐 Contraseña</label>
+        <input id="password" name="password" type="password" placeholder="Ingresa tu contraseña" required autocomplete="current-password">
+
+        <button type="submit" style="width: 100%; margin-top: 24px; font-size: 16px; padding: 14px;">
+            🚀 Entrar al Sistema
+        </button>
+    </form>
+    
+    <div style="text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+        <p style="color: #6b7280; font-size: 12px; margin: 0;">© 2026 DajhanChi_Ventas. Todos los derechos reservados.</p>
+    </div>
+</div>
+{% endblock %}

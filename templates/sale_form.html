@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <h1>💰 ➕ Registrar Nueva Venta</h1>
+</div>
+
+<div style="max-width: 700px;">
+    <form method="post" class="card">
+        <label for="customer_name">👤 Nombre del Cliente (Opcional)</label>
+        <input id="customer_name" name="customer_name" type="text" placeholder="Ej: Juan Pérez" value="{{ customer_name }}">
+
+        <label for="payment_method" style="margin-top: 16px;">💳 Forma de Pago <span style="color: #ef4444;">*</span></label>
+        <select id="payment_method" name="payment_method" style="margin-top: 4px;">
+            <option value="efectivo" {% if payment_method == 'efectivo' %}selected{% endif %}>💵 Efectivo</option>
+            <option value="yape" {% if payment_method == 'yape' %}selected{% endif %}>📱 Yape</option>
+            <option value="fiado" {% if payment_method == 'fiado' %}selected{% endif %}>📝 Fiado</option>
+        </select>
+
+        <div style="margin-top: 28px; padding-top: 20px; border-top: 2px solid #f3f4f6;">
+            <h3 style="margin-top: 0;">📦 Productos a Vender</h3>
+            
+            <div id="lines">
+                <div class="line-item" style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div>
+                        <label style="margin-top: 0;">🏪 Producto</label>
+                        <select name="product_id" style="margin-top: 4px;">
+                            <option value="">— Selecciona un producto —</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.name }} (Stock: {{ product.stock }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="margin-top: 0;">📊 Cantidad</label>
+                        <input type="number" name="qty" min="1" value="1" style="margin-top: 4px;">
+                    </div>
+                </div>
+            </div>
+
+            <button class="button secondary" type="button" onclick="addLine()" style="width: 100%; margin-top: 12px;">➕ Agregar Otro Producto</button>
+        </div>
+
+        <div class="actions" style="margin-top: 28px;">
+            <button type="submit" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);">✅ Registrar Venta</button>
+        </div>
+        <a class="button secondary" style="width: 100%; text-align: center;" href="{{ url_for('sales') }}">← Volver</a>
+    </form>
+</div>
+
+<script>
+function addLine() {
+    var lines = document.getElementById("lines");
+    var first = lines.querySelector(".line-item");
+    var clone = first.cloneNode(true);
+    clone.querySelector("select").value = "";
+    clone.querySelector("input").value = "1";
+    lines.appendChild(clone);
+}
+</script>
+{% endblock %}

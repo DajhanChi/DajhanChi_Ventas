@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>📦 Catálogo de Productos</h1>
+        <p style="color: #6b7280; margin: 4px 0 0 0;">Gestiona todos tus productos</p>
+    </div>
+    <a class="button" href="{{ url_for('product_new') }}">➕ Nuevo Producto</a>
+</div>
+
+<!-- Buscador de productos -->
+{% if products %}
+<div style="background: white; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <div style="flex: 1; position: relative;">
+            <input type="text" id="searchInput" placeholder="🔍 Buscar por nombre o SKU..." 
+                   style="width: 100%; padding: 10px 40px 10px 12px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; transition: border-color 0.2s;">
+            <button id="clearSearch" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #6b7280; cursor: pointer; font-size: 18px; padding: 4px 8px; display: none;">✕</button>
+        </div>
+        <div id="searchResults" style="color: #6b7280; font-size: 14px; white-space: nowrap;">
+            <span id="totalProducts">{{ products|length }}</span> productos
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    {% if products %}
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>SKU</th>
+                <th style="text-align: right;">Costo</th>
+                <th style="text-align: right;">Precio</th>
+                <th style="text-align: right;">Margen</th>
+                <th style="text-align: center;">Stock</th>
+                <th style="text-align: center;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for product in products %}
+            <tr>
+                <td><strong>{{ product.name }}</strong></td>
+                <td><code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 12px;">{{ product.sku or "N/A" }}</code></td>
+                <td style="text-align: right; color: #ef4444; font-weight: 600;">{{ product.cost_cents | money }}</td>
+                <td style="text-align: right; color: #10b981; font-weight: 600;">{{ product.price_cents | money }}</td>
+                <td style="text-align: right; color: #3b82f6; font-weight: 600;">
+                    {% if product.cost_cents > 0 %}
+                    {{ "%.1f" | format(((product.price_cents - product.cost_cents) / product.cost_cents * 100)) }}%
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </td>
+                <td style="text-align: center;">
+                    {% if product.stock < 5 %}
+                    <span class="stock-low">{{ product.stock }}</span>
+                    {% elif product.stock < 10 %}
+                    <span class="stock-medium">{{ product.stock }}</span>
+                    {% else %}
+                    <span class="stock-high">{{ product.stock }}</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: center;">
+                    <a href="{{ url_for('product_edit', product_id=product.id) }}" style="display: inline-block; background: #3b82f6; color: white; padding: 6px 10px; border-radius: 4px; font-size: 16px; margin-right: 6px; text-decoration: none;" title="Editar">✏️</a>
+                    <form method="post" action="{{ url_for('product_delete', product_id=product.id) }}" style="display: inline;">
+                        <button type="submit" data-confirm="¿Eliminar este producto?" data-confirm-title="Eliminar producto" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 16px;" title="Eliminar">🗑️</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align: center; padding: 48px 0;">
+        <p style="font-size: 48px; margin: 0;">📭</p>
+        <h3 style="margin: 16px 0 8px 0;">No hay productos aún</h3>
+        <p style="color: #6b7280; margin: 0 0 20px 0;">Comienza creando tu primer producto</p>
+        <a class="button" href="{{ url_for('product_new') }}">➕ Crear Producto</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if products %}
+<script>
+(function() {
+    const searchInput = document.getElementById('searchInput');
+    const clearButton = document.getElementById('clearSearch');
+    const totalProducts = document.getElementById('totalProducts');
+    const tbody = document.querySelector('table tbody');
+    const rows = tbody ? tbody.querySelectorAll('tr') : [];
+    
+    function filterProducts() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        let visibleCount = 0;
+        
+        rows.forEach(function(row) {
+            const name = row.querySelector('td:first-child')?.textContent.toLowerCase() || '';
+            const sku = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+            
+            if (name.includes(searchTerm) || sku.includes(searchTerm)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Actualizar contador
+        totalProducts.textContent = visibleCount;
+        
+        // Mostrar/ocultar botón de limpiar
+        clearButton.style.display = searchTerm ? 'block' : 'none';
+        
+        // Cambiar borde del input
+        searchInput.style.borderColor = searchTerm ? '#3b82f6' : '#e5e7eb';
+        
+        // Mostrar mensaje si no hay resultados
+        const noResultsMsg = document.getElementById('noResultsMsg');
+        if (visibleCount === 0 && searchTerm) {
+            if (!noResultsMsg) {
+                const msg = document.createElement('tr');
+                msg.id = 'noResultsMsg';
+                msg.innerHTML = '<td colspan="7" style="text-align: center; padding: 40px; color: #6b7280;"><p style="font-size: 32px; margin: 0;">🔍</p><p style="margin: 12px 0 0 0;">No se encontraron productos que coincidan con "<strong>' + searchTerm + '</strong>"</p></td>';
+                tbody.appendChild(msg);
+            }
+        } else if (noResultsMsg) {
+            noResultsMsg.remove();
+        }
+    }
+    
+    function clearSearch() {
+        searchInput.value = '';
+        filterProducts();
+        searchInput.focus();
+    }
+    
+    // Event listeners
+    searchInput.addEventListener('input', filterProducts);
+    searchInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Escape') {
+            clearSearch();
+        }
+    });
+    clearButton.addEventListener('click', clearSearch);
+    
+    // Focus en el buscador con Ctrl+K o Cmd+K
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

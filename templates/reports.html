@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>📊 Reportes y Análisis</h1>
+        <p style="color: #6b7280; margin: 4px 0 0 0;">Métricas y estadísticas de tu negocio</p>
+    </div>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <h2 style="margin: 0;">📅 Ventas de Hoy</h2>
+            <span style="font-size: 28px;">📈</span>
+        </div>
+        <div style="padding: 20px 0; border-bottom: 2px solid #f3f4f6; margin-bottom: 16px;">
+            <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; text-transform: uppercase;">Total Ventas</p>
+            <p style="margin: 0; font-size: 32px; font-weight: 700; color: #10b981;">{{ total_sales_today | money }}</p>
+        </div>
+        <div>
+            <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; text-transform: uppercase;">Transacciones</p>
+            <p style="margin: 0; font-size: 24px; font-weight: 600; color: #3b82f6;">{{ total_transactions_today }} ventas</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <h2 style="margin: 0;">⭐ Productos Más Vendidos</h2>
+            <span style="font-size: 28px;">🔥</span>
+        </div>
+        {% if top_products %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th style="text-align: right;">Cantidad</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for name, qty in top_products %}
+                <tr>
+                    <td><strong>{{ name }}</strong></td>
+                    <td style="text-align: right; color: #3b82f6; font-weight: 600;">{{ qty }} unid.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 32px 0; color: #9ca3af;">
+            <p style="font-size: 32px; margin: 0;">📭</p>
+            <p style="margin: 12px 0 0 0;">No hay datos disponibles aún</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

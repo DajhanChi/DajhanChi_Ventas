@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>👥 Gestión de Usuarios</h1>
+        <p style="color: #6b7280; margin: 4px 0 0 0;">Administra los usuarios del sistema</p>
+    </div>
+    <a class="button" href="{{ url_for('user_new') }}">➕ Nuevo Usuario</a>
+</div>
+
+<div class="card">
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th style="text-align: center;">Estado</th>
+                <th style="text-align: center;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for user in users %}
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px;">{{ user.username[0].upper() }}</div>
+                        <strong>{{ user.username }}</strong>
+                    </div>
+                </td>
+                <td>
+                    <span style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                        {{ user.role }}
+                    </span>
+                </td>
+                <td style="text-align: center;">
+                    {% if user.is_active %}
+                    <span class="stock-high">✓ Activo</span>
+                    {% else %}
+                    <span class="stock-low">✕ Inactivo</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: center;">
+                    <a href="{{ url_for('user_edit', user_id=user.id) }}" style="color: #3b82f6; font-weight: 600; margin-right: 12px;">✏️ Editar</a>
+                    <a href="{{ url_for('user_change_password', user_id=user.id) }}" style="color: #f59e0b; font-weight: 600; margin-right: 12px;">🔐 Contraseña</a>
+                    {% if user.id != session.get('user_id') %}
+                    <form method="post" action="{{ url_for('user_delete', user_id=user.id) }}" style="display: inline; margin: 0;">
+                        <button type="submit" class="danger" data-confirm="¿Eliminar este usuario?" data-confirm-title="Eliminar usuario" style="padding: 4px 8px; font-size: 12px; margin: 0; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🗑️ Eliminar</button>
+                    </form>
+                    {% else %}
+                    <span style="color: #9ca3af; font-size: 12px;">(Tu cuenta)</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align: center; padding: 48px 0;">
+        <p style="font-size: 48px; margin: 0;">👥</p>
+        <h3 style="margin: 16px 0 8px 0;">No hay usuarios registrados</h3>
+        <p style="color: #6b7280; margin: 0 0 20px 0;">Crea el primer usuario del sistema</p>
+        <a class="button" href="{{ url_for('user_new') }}">➕ Crear Usuario</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
