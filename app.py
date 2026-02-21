@@ -17,8 +17,10 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["COMPRESS_LEVEL"] = 6
 app.config["COMPRESS_MIN_SIZE"] = 500
 
-instance_db_path = os.path.join(app.instance_path, "app.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{instance_db_path}"
+# Solo configurar la base de datos si no se ha configurado externamente
+if not app.config.get("SQLALCHEMY_DATABASE_URI"):
+    instance_db_path = os.path.join(app.instance_path, "app.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{instance_db_path}"
 
 
 db = SQLAlchemy(app)
@@ -414,6 +416,134 @@ def sale_delete(sale_id):
     return redirect(url_for("sales"))
 
 
+@app.route("/sales/<int:sale_id>/edit", methods=["GET", "POST"])
+@login_required
+def sale_edit(sale_id):
+    sale = Sale.query.get_or_404(sale_id)
+    products = Product.query.order_by(Product.name.asc()).all()
+    
+    if request.method == "POST":
+        customer_name = request.form.get("customer_name", "").strip()
+        payment_method = request.form.get("payment_method", "efectivo").strip()
+        product_ids = request.form.getlist("product_id")
+        qty_values = request.form.getlist("qty")
+
+        # Validar productos y cantidades
+        valid_ids = [int(pid) for pid in product_ids if pid]
+        products_map = {p.id: p for p in Product.query.filter(Product.id.in_(valid_ids)).all()} if valid_ids else {}
+
+        line_items = []
+        for product_id, qty_str in zip(product_ids, qty_values):
+            if not product_id or not qty_str:
+                continue
+            try:
+                qty = int(qty_str)
+                pid = int(product_id)
+            except (ValueError, TypeError):
+                continue
+            if qty <= 0 or pid not in products_map:
+                continue
+            product = products_map[pid]
+            line_items.append({"product": product, "qty": qty})
+
+        if not line_items:
+            flash("Agrega al menos un producto", "error")
+            return render_template(
+                "sale_form.html", 
+                sale=sale,
+                products=products, 
+                line_items=line_items, 
+                customer_name=customer_name, 
+                payment_method=payment_method
+            )
+
+        # Devolver stock de los productos originales
+        for item in sale.items:
+            item.product.stock += item.qty
+
+        # Validar stock disponible para los nuevos productos
+        for item in line_items:
+            if item["product"].stock < item["qty"]:
+                # Si falla, restaurar el stock original antes de mostrar el error
+                for original_item in sale.items:
+                    original_item.product.stock -= original_item.qty
+                flash(f"Stock insuficiente para {item['product'].name}", "error")
+                return render_template(
+                    "sale_form.html",
+                    sale=sale,
+                    products=products,
+                    line_items=line_items,
+                    customer_name=customer_name,
+                    payment_method=payment_method
+                )
+
+        # Eliminar los items antiguos
+        for item in sale.items:
+            db.session.delete(item)
+        
+        # Actualizar información de la venta
+        sale.customer_name = customer_name
+        sale.payment_method = payment_method
+        
+        # Ajustar estado de pago según el método
+        # Si cambia de fiado a otro método, marcar como pagado
+        if payment_method != "fiado" and sale.payment_status in ["pendiente", "parcial"]:
+            sale.payment_status = "pagado"
+            # El total pagado será actualizado después de calcular el nuevo total
+        elif payment_method == "fiado" and sale.paid_cents == 0:
+            sale.payment_status = "pendiente"
+        
+        # Crear nuevos items y calcular total
+        total_cents = 0
+        for item in line_items:
+            product = item["product"]
+            qty = item["qty"]
+            line_total = product.price_cents * qty
+            sale_item = SaleItem(
+                sale=sale,
+                product=product,
+                qty=qty,
+                unit_price_cents=product.price_cents,
+                line_total_cents=line_total,
+            )
+            product.stock -= qty
+            total_cents += line_total
+            db.session.add(sale_item)
+
+        sale.total_cents = total_cents
+        
+        # Ajustar paid_cents según el nuevo total y método de pago
+        if payment_method != "fiado":
+            sale.paid_cents = total_cents
+            sale.payment_status = "pagado"
+        else:
+            # Si es fiado, mantener el monto ya pagado si es menor o igual al nuevo total
+            if sale.paid_cents > total_cents:
+                sale.paid_cents = total_cents
+            # Actualizar estado de pago
+            if sale.paid_cents == 0:
+                sale.payment_status = "pendiente"
+            elif sale.paid_cents >= total_cents:
+                sale.payment_status = "pagado"
+            else:
+                sale.payment_status = "parcial"
+        
+        db.session.commit()
+        flash("Venta actualizada correctamente", "success")
+        return redirect(url_for("sales"))
+
+    # GET: Mostrar formulario con datos existentes
+    line_items = [{"product": item.product, "qty": item.qty} for item in sale.items]
+    return render_template(
+        "sale_form.html",
+        sale=sale,
+        products=products,
+        line_items=line_items,
+        customer_name=sale.customer_name or "",
+        payment_method=sale.payment_method
+    )
+
+
 @app.route("/debts")
 @login_required
 def debts():
@@ -422,9 +552,25 @@ def debts():
         Sale.payment_status.in_(["pendiente", "parcial"])
     ).order_by(Sale.created_at.desc()).all()
     
+    # Agrupar las ventas por cliente
+    debts_by_customer = {}
+    for sale in pending_sales:
+        customer = sale.customer_name or "Sin nombre"
+        if customer not in debts_by_customer:
+            debts_by_customer[customer] = {
+                'customer_name': customer,
+                'total_debt_cents': 0,
+                'sales': []
+            }
+        debts_by_customer[customer]['total_debt_cents'] += sale.pending_cents
+        debts_by_customer[customer]['sales'].append(sale)
+    
+    # Convertir a lista y ordenar por deuda (mayor a menor)
+    grouped_debts = sorted(debts_by_customer.values(), key=lambda x: x['total_debt_cents'], reverse=True)
+    
     total_debt_cents = sum(sale.pending_cents for sale in pending_sales)
     
-    return render_template("debts.html", pending_sales=pending_sales, total_debt_cents=total_debt_cents)
+    return render_template("debts.html", grouped_debts=grouped_debts, total_debt_cents=total_debt_cents)
 
 
 @app.route("/debts/<int:sale_id>/payment", methods=["GET", "POST"])

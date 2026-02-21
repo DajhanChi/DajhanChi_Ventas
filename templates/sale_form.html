@@ -1,7 +1,85 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+.remove-line:hover:not(:disabled) {
+    background: #dc2626 !important;
+    transform: scale(1.05);
+}
+.remove-line:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.product-search-container {
+    position: relative;
+}
+
+.product-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.product-search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.product-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    max-height: 250px;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: none;
+    margin-top: 4px;
+}
+
+.product-suggestion-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.15s;
+}
+
+.product-suggestion-item:hover {
+    background: #f3f4f6;
+}
+
+.product-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.product-suggestion-name {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.product-suggestion-stock {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.no-results {
+    padding: 12px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 13px;
+}
+</style>
+
 <div class="page-head">
-    <h1>💰 ➕ Registrar Nueva Venta</h1>
+    <h1>💰 {% if sale %}✏️ Editar Venta{% else %}➕ Registrar Nueva Venta{% endif %}</h1>
 </div>
 
 <div style="max-width: 700px;">
@@ -15,47 +93,224 @@
             <option value="yape" {% if payment_method == 'yape' %}selected{% endif %}>📱 Yape</option>
             <option value="fiado" {% if payment_method == 'fiado' %}selected{% endif %}>📝 Fiado</option>
         </select>
+        
+        {% if sale and sale.payment_method == 'fiado' and sale.paid_cents > 0 %}
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-top: 12px; border-radius: 4px;">
+            <p style="margin: 0; color: #92400e; font-size: 14px;">
+                ⚠️ <strong>Nota:</strong> Esta venta tiene pagos registrados ({{ sale.paid_cents | money }}). Al editar el total, el estado de pago se ajustará automáticamente.
+            </p>
+        </div>
+        {% endif %}
 
         <div style="margin-top: 28px; padding-top: 20px; border-top: 2px solid #f3f4f6;">
             <h3 style="margin-top: 0;">📦 Productos a Vender</h3>
             
             <div id="lines">
-                <div class="line-item" style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                {% if line_items %}
+                    {% for item in line_items %}
+                    <div class="line-item" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 16px; margin-bottom: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                        <div>
+                            <label style="margin-top: 0;">🏪 Producto</label>
+                            <div class="product-search-container">
+                                <input type="text" class="product-search-input" placeholder="Buscar producto..." value="{{ item.product.name }}" autocomplete="off">
+                                <input type="hidden" name="product_id" value="{{ item.product.id }}">
+                                <div class="product-suggestions"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style="margin-top: 0;">📊 Cantidad</label>
+                            <input type="number" name="qty" min="1" value="{{ item.qty }}" style="margin-top: 4px;">
+                        </div>
+
+                        <div style="display: flex; align-items: flex-end;">
+                            <button type="button" class="remove-line" onclick="removeLine(this)" style="background: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: background 0.2s;" title="Eliminar producto">🗑️</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="line-item" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 16px; margin-bottom: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
                     <div>
                         <label style="margin-top: 0;">🏪 Producto</label>
-                        <select name="product_id" style="margin-top: 4px;">
-                            <option value="">— Selecciona un producto —</option>
-                            {% for product in products %}
-                            <option value="{{ product.id }}">{{ product.name }} (Stock: {{ product.stock }})</option>
-                            {% endfor %}
-                        </select>
+                        <div class="product-search-container">
+                            <input type="text" class="product-search-input" placeholder="Buscar producto..." autocomplete="off">
+                            <input type="hidden" name="product_id" value="">
+                            <div class="product-suggestions"></div>
+                        </div>
                     </div>
 
                     <div>
                         <label style="margin-top: 0;">📊 Cantidad</label>
                         <input type="number" name="qty" min="1" value="1" style="margin-top: 4px;">
                     </div>
+
+                    <div style="display: flex; align-items: flex-end;">
+                        <button type="button" class="remove-line" onclick="removeLine(this)" style="background: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: background 0.2s;" title="Eliminar producto">🗑️</button>
+                    </div>
                 </div>
+                {% endif %}
             </div>
 
             <button class="button secondary" type="button" onclick="addLine()" style="width: 100%; margin-top: 12px;">➕ Agregar Otro Producto</button>
         </div>
 
         <div class="actions" style="margin-top: 28px;">
-            <button type="submit" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);">✅ Registrar Venta</button>
+            <button type="submit" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);">
+                {% if sale %}💾 Actualizar Venta{% else %}✅ Registrar Venta{% endif %}
+            </button>
         </div>
         <a class="button secondary" style="width: 100%; text-align: center;" href="{{ url_for('sales') }}">← Volver</a>
     </form>
 </div>
 
+<script id="products-data" type="application/json">{{ products | tojson }}</script>
 <script>
+// Datos de productos disponibles
+const productsDataEl = document.getElementById('products-data');
+const products = productsDataEl ? JSON.parse(productsDataEl.textContent) : [];
+
+// Función para filtrar y mostrar sugerencias
+function showSuggestions(input) {
+    const container = input.closest('.product-search-container');
+    const suggestionsDiv = container.querySelector('.product-suggestions');
+    const searchTerm = input.value.toLowerCase().trim();
+    
+    // Limpiar sugerencias anteriores
+    suggestionsDiv.innerHTML = '';
+    
+    if (searchTerm.length === 0) {
+        suggestionsDiv.style.display = 'none';
+        return;
+    }
+    
+    // Filtrar productos
+    const filtered = products.filter(p => 
+        p.name.toLowerCase().includes(searchTerm)
+    ).slice(0, 8); // Mostrar máximo 8 resultados
+    
+    if (filtered.length === 0) {
+        suggestionsDiv.innerHTML = '<div class="no-results">No se encontraron productos</div>';
+        suggestionsDiv.style.display = 'block';
+        return;
+    }
+    
+    // Crear elementos de sugerencia
+    filtered.forEach(product => {
+        const item = document.createElement('div');
+        item.className = 'product-suggestion-item';
+        item.innerHTML = `
+            <div class="product-suggestion-name">${product.name}</div>
+            <div class="product-suggestion-stock">Stock disponible: ${product.stock}</div>
+        `;
+        item.onclick = function() {
+            selectProduct(container, product);
+        };
+        suggestionsDiv.appendChild(item);
+    });
+    
+    suggestionsDiv.style.display = 'block';
+}
+
+// Función para seleccionar un producto
+function selectProduct(container, product) {
+    const input = container.querySelector('.product-search-input');
+    const hiddenInput = container.querySelector('input[name="product_id"]');
+    const suggestionsDiv = container.querySelector('.product-suggestions');
+    
+    input.value = product.name;
+    hiddenInput.value = product.id;
+    suggestionsDiv.style.display = 'none';
+}
+
+// Configurar autocompletado para todos los inputs de búsqueda
+function setupProductSearch() {
+    document.querySelectorAll('.product-search-input').forEach(input => {
+        // Evento de escritura
+        input.addEventListener('input', function() {
+            showSuggestions(this);
+        });
+        
+        // Evento de foco
+        input.addEventListener('focus', function() {
+            if (this.value.trim().length > 0) {
+                showSuggestions(this);
+            }
+        });
+        
+        // Limpiar el hidden input si se borra el texto
+        input.addEventListener('input', function() {
+            if (this.value.trim().length === 0) {
+                const hiddenInput = this.closest('.product-search-container').querySelector('input[name="product_id"]');
+                hiddenInput.value = '';
+            }
+        });
+    });
+}
+
+// Cerrar sugerencias al hacer clic fuera
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.product-search-container')) {
+        document.querySelectorAll('.product-suggestions').forEach(div => {
+            div.style.display = 'none';
+        });
+    }
+});
+
 function addLine() {
     var lines = document.getElementById("lines");
     var first = lines.querySelector(".line-item");
     var clone = first.cloneNode(true);
-    clone.querySelector("select").value = "";
-    clone.querySelector("input").value = "1";
+    
+    // Limpiar valores
+    clone.querySelector('.product-search-input').value = "";
+    clone.querySelector('input[name="product_id"]').value = "";
+    clone.querySelector('input[name="qty"]').value = "1";
+    clone.querySelector('.product-suggestions').innerHTML = "";
+    clone.querySelector('.product-suggestions').style.display = "none";
+    
     lines.appendChild(clone);
+    setupProductSearch();
+    updateRemoveButtons();
 }
+
+function removeLine(button) {
+    var lines = document.getElementById("lines");
+    var lineItems = lines.querySelectorAll(".line-item");
+    
+    // Solo permitir eliminar si hay más de una línea
+    if (lineItems.length > 1) {
+        button.closest(".line-item").remove();
+        updateRemoveButtons();
+    } else {
+        alert("⚠️ Debe haber al menos un producto en la venta");
+    }
+}
+
+function updateRemoveButtons() {
+    var lines = document.getElementById("lines");
+    var lineItems = lines.querySelectorAll(".line-item");
+    var removeButtons = lines.querySelectorAll(".remove-line");
+    
+    // Si solo hay una línea, deshabilitar el botón de eliminar
+    if (lineItems.length === 1) {
+        removeButtons.forEach(function(btn) {
+            btn.style.opacity = "0.3";
+            btn.style.cursor = "not-allowed";
+            btn.disabled = true;
+        });
+    } else {
+        removeButtons.forEach(function(btn) {
+            btn.style.opacity = "1";
+            btn.style.cursor = "pointer";
+            btn.disabled = false;
+        });
+    }
+}
+
+// Inicializar al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    setupProductSearch();
+    updateRemoveButtons();
+});
 </script>
 {% endblock %}

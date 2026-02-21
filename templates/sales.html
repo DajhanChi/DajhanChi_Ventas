@@ -1,5 +1,125 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+.sales-table {
+    border-collapse: separate;
+    border-spacing: 0 10px;
+}
+
+.sales-table thead th {
+    padding: 16px 18px;
+}
+
+.sales-table tbody td {
+    padding: 16px 18px;
+}
+
+.sales-table tbody tr {
+    background: white;
+}
+
+.sales-table tbody tr:first-child td {
+    border-top: 1px solid #f3f4f6;
+}
+
+.sales-table tbody tr td:first-child {
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.sales-table tbody tr td:last-child {
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.payment-info {
+    background: #dcfce7;
+    padding: 12px;
+    border-radius: 4px;
+    border-left: 4px solid #10b981;
+}
+
+.payment-info.status-pendiente {
+    background: #fee2e2;
+    border-left-color: #ef4444;
+}
+
+.payment-info.status-parcial {
+    background: #dbeafe;
+    border-left-color: #3b82f6;
+}
+
+.payment-info.status-pagado {
+    background: #dcfce7;
+    border-left-color: #10b981;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    height: 34px;
+}
+
+.action-buttons form {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    height: 34px;
+    line-height: 0;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 34px;
+    border-radius: 10px;
+    border: 0;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    text-decoration: none;
+    padding: 0;
+    line-height: 0;
+    vertical-align: middle;
+    font-family: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    box-sizing: border-box;
+}
+
+.action-btn:active {
+    transform: scale(0.96);
+}
+
+.action-btn.edit {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.action-btn.edit:hover {
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.35);
+}
+
+.action-btn.delete {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25);
+}
+
+.action-btn.delete:hover {
+    box-shadow: 0 6px 14px rgba(220, 38, 38, 0.35);
+}
+
+.action-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+</style>
 <div class="page-head">
     <div>
         <h1>💰 Registro de Ventas</h1>
@@ -11,7 +131,7 @@
 <div class="card">
     {% if sales %}
     <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse;">
+        <table class="sales-table" style="width: 100%;">
             <thead>
                 <tr style="border-bottom: 2px solid #e5e7eb;">
                     <th style="text-align: center; width: 30px; padding: 8px;">📌</th>
@@ -53,9 +173,12 @@
                     </td>
                     <td style="text-align: right; padding: 8px 10px; color: #10b981; font-weight: 600; vertical-align: middle;">{{ sale.total_cents | money }}</td>
                     <td style="text-align: center; padding: 6px; vertical-align: middle;">
-                        <form method="post" action="{{ url_for('sale_delete', sale_id=sale.id) }}" style="display: inline; margin: 0;">
-                            <button type="submit" data-confirm="¿Eliminar esta venta y devolver stock?" data-confirm-title="Eliminar venta" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 16px;" title="Eliminar">🗑️</button>
-                        </form>
+                        <div class="action-buttons">
+                            <a href="{{ url_for('sale_edit', sale_id=sale.id) }}" class="action-btn edit" title="Editar">✏️</a>
+                            <form method="post" action="{{ url_for('sale_delete', sale_id=sale.id) }}">
+                                <button type="submit" data-confirm="¿Eliminar esta venta y devolver stock?" data-confirm-title="Eliminar venta" class="action-btn delete" title="Eliminar">🗑️</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 <tr id="details_{{ sale.id }}" style="display: none; background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
@@ -78,7 +201,7 @@
                             
                             <!-- Información de pago si es fiado -->
                             {% if sale.payment_method == 'fiado' %}
-                            <div style="background: {% if sale.payment_status == 'pendiente' %}#fee2e2{% elif sale.payment_status == 'parcial' %}#dbeafe{% else %}#dcfce7{% endif %}; padding: 12px; border-radius: 4px; border-left: 4px solid {% if sale.payment_status == 'pendiente' %}#ef4444{% elif sale.payment_status == 'parcial' %}#3b82f6{% else %}#10b981{% endif %};">
+                            <div class="payment-info status-{{ sale.payment_status }}">
                                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
                                     <div>
                                         <p style="margin: 0; font-size: 12px; color: #6b7280;">Total venta</p>
@@ -117,8 +240,8 @@
 
 <script>
 function toggleDetails(event, saleId) {
-    // No hacer nada si el click fue en un botón o form
-    if (event.target.tagName === 'BUTTON' || event.target.closest('form')) {
+    // No hacer nada si el click fue en un botón, form o enlace
+    if (event.target.tagName === 'BUTTON' || event.target.tagName === 'A' || event.target.closest('form') || event.target.closest('a')) {
         return;
     }
     

@@ -1,5 +1,72 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    height: 34px;
+}
+
+.action-buttons form {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    height: 34px;
+    line-height: 0;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 34px;
+    border-radius: 10px;
+    border: 0;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    text-decoration: none;
+    padding: 0;
+    line-height: 0;
+    vertical-align: middle;
+    font-family: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    box-sizing: border-box;
+}
+
+.action-btn:active {
+    transform: scale(0.96);
+}
+
+.action-btn.edit {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.action-btn.edit:hover {
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.35);
+}
+
+.action-btn.delete {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25);
+}
+
+.action-btn.delete:hover {
+    box-shadow: 0 6px 14px rgba(220, 38, 38, 0.35);
+}
+
+.action-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+</style>
 <div class="page-head">
     <div>
         <h1>📦 Catálogo de Productos</h1>
@@ -62,10 +129,12 @@
                     {% endif %}
                 </td>
                 <td style="text-align: center;">
-                    <a href="{{ url_for('product_edit', product_id=product.id) }}" style="display: inline-block; background: #3b82f6; color: white; padding: 6px 10px; border-radius: 4px; font-size: 16px; margin-right: 6px; text-decoration: none;" title="Editar">✏️</a>
-                    <form method="post" action="{{ url_for('product_delete', product_id=product.id) }}" style="display: inline;">
-                        <button type="submit" data-confirm="¿Eliminar este producto?" data-confirm-title="Eliminar producto" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 16px;" title="Eliminar">🗑️</button>
-                    </form>
+                    <div class="action-buttons">
+                        <a href="{{ url_for('product_edit', product_id=product.id) }}" class="action-btn edit" title="Editar">✏️</a>
+                        <form method="post" action="{{ url_for('product_delete', product_id=product.id) }}">
+                            <button type="submit" data-confirm="¿Eliminar este producto?" data-confirm-title="Eliminar producto" class="action-btn delete" title="Eliminar">🗑️</button>
+                        </form>
+                    </div>
                 </td>
             </tr>
         {% endfor %}
