@@ -9,7 +9,7 @@ from functools import wraps
 
 from dotenv import load_dotenv
 
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_compress import Compress
@@ -1365,6 +1365,7 @@ def user_new():
 def user_edit(user_id):
     user = User.query.get_or_404(user_id)
     is_protected_user = user.username == PROTECTED_USERNAME
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -1376,21 +1377,29 @@ def user_edit(user_id):
             secret_key = request.form.get("secret_key", "").strip()
             if secret_key != PROTECTED_USER_SECRET:
                 flash("⚠️ Necesitas la clave de acceso para modificar este usuario", "error")
+                if is_ajax:
+                    return render_template("user_form.html", user=user, is_protected=True, is_ajax=True), 400
                 return render_template("user_form.html", user=user, is_protected=True)
 
         if not username or len(username) < 3:
             flash("Usuario debe tener al menos 3 caracteres", "error")
+            if is_ajax:
+                return render_template("user_form.html", user=user, is_protected=is_protected_user, is_ajax=True), 400
             return render_template("user_form.html", user=user, is_protected=is_protected_user)
 
         # Verificar si el nuevo username ya existe en otro usuario
         existing = User.query.filter_by(username=username).first()
         if existing and existing.id != user.id:
             flash(f"👤 Usuario '{username}' ya existe en otro perfil. Elige otro.", "error")
+            if is_ajax:
+                return render_template("user_form.html", user=user, is_protected=is_protected_user, is_ajax=True), 400
             return render_template("user_form.html", user=user, is_protected=is_protected_user)
 
         # No permitir cambiar username del usuario protegido
         if is_protected_user and username != PROTECTED_USERNAME:
             flash("⚠️ No se puede cambiar el nombre de este usuario protegido", "error")
+            if is_ajax:
+                return render_template("user_form.html", user=user, is_protected=True, is_ajax=True), 400
             return render_template("user_form.html", user=user, is_protected=True)
 
         user.username = username
@@ -1398,9 +1407,12 @@ def user_edit(user_id):
         user.is_active = is_active
         db.session.commit()
         flash("Usuario actualizado", "success")
+        
+        if is_ajax:
+            return jsonify({"success": True}), 200
         return redirect(url_for("users"))
 
-    return render_template("user_form.html", user=user, is_protected=is_protected_user)
+    return render_template("user_form.html", user=user, is_protected=is_protected_user, is_ajax=is_ajax)
 
 
 @app.route("/users/<int:user_id>/delete", methods=["POST"])
@@ -1456,6 +1468,7 @@ def user_delete(user_id):
 def user_change_password(user_id):
     user = User.query.get_or_404(user_id)
     is_protected_user = user.username == PROTECTED_USERNAME
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     # Determinar si es el mismo usuario
     current_user_id = session.get("user_id")
@@ -1464,6 +1477,8 @@ def user_change_password(user_id):
     # Solo admin o el mismo usuario pueden cambiar contraseña
     if not is_self and session.get("role") != "admin":
         flash("No tienes permiso para cambiar esta contraseña", "error")
+        if is_ajax:
+            return jsonify({"error": "No tienes permiso"}), 403
         return redirect(url_for("users"))
     
     if request.method == "POST":
@@ -1476,32 +1491,45 @@ def user_change_password(user_id):
             secret_key = request.form.get("secret_key", "").strip()
             if secret_key != PROTECTED_USER_SECRET:
                 flash("⚠️ Necesitas la clave de acceso para cambiar la contraseña de este usuario protegido", "error")
+                if is_ajax:
+                    return render_template("user_password.html", user=user, is_protected=True, is_self=is_self, is_ajax=True), 400
                 return render_template("user_password.html", user=user, is_protected=True, is_self=is_self)
 
         # Verificar contraseña antigua solo si el usuario intenta cambiar su propia contraseña
         if is_self:
             if not old_password:
                 flash("Debes ingresar tu contraseña actual", "error")
+                if is_ajax:
+                    return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=True, is_ajax=True), 400
                 return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=True)
             if not user.check_password(old_password):
                 flash("Contraseña actual incorrecta", "error")
+                if is_ajax:
+                    return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=True, is_ajax=True), 400
                 return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=True)
 
         if not new_password or len(new_password) < 6:
             flash("Nueva contraseña debe tener al menos 6 caracteres", "error")
+            if is_ajax:
+                return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self, is_ajax=True), 400
             return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self)
 
         if new_password != confirm_password:
             flash("Las contraseñas no coinciden", "error")
+            if is_ajax:
+                return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self, is_ajax=True), 400
             return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self)
 
         user.password_hash = generate_password_hash(new_password)
         db.session.commit()
         flash("Contraseña actualizada", "success")
+        
+        if is_ajax:
+            return jsonify({"success": True}), 200
         return redirect(url_for("users"))
     
     # Método GET: mostrar el formulario
-    return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self)
+    return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self, is_ajax=is_ajax)
 
 
 @app.route("/settings", methods=["GET", "POST"])

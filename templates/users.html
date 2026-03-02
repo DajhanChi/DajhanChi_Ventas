@@ -243,8 +243,8 @@
                     </td>
                     <td style="text-align: right;">
                         <div class="action-buttons">
-                            <button type="button" class="action-btn edit" data-href="{{ url_for('user_edit', user_id=user.id) }}" onclick="window.location.href=this.getAttribute('data-href')">✏️ Editar</button>
-                            <button type="button" class="action-btn password" data-href="{{ url_for('user_change_password', user_id=user.id) }}" onclick="window.location.href=this.getAttribute('data-href')">🔐 Clave</button>
+                            <button type="button" class="action-btn edit" onclick="openUserModal('{{ user.id }}')">✏️ Editar</button>
+                            <button type="button" class="action-btn password" onclick="openPasswordModal('{{ user.id }}')">🔐 Clave</button>
                             {% if user.id != session.get('user_id') %}
                                 {% if user.username == 'dajhanchi' %}
                                     <button type="button" class="action-btn delete" data-id="{{ user.id }}" data-name="{{ user.username }}" data-url="{{ url_for('user_delete', user_id=user.id) }}" onclick="openProtectedDeleteConfirm(this.dataset.id, this.dataset.name, this.dataset.url)">🗑️ Eliminar</button>
@@ -269,6 +269,30 @@
         <button type="button" class="button" data-href="{{ url_for('user_new') }}" onclick="window.location.href=this.getAttribute('data-href')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 700;">➕ Crear Usuario</button>
     </div>
     {% endif %}
+</div>
+
+<!-- Modal para Editar Usuario -->
+<div id="editUserModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 16px; width: min(600px, 95vw); max-height: 90vh; box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: slideIn 0.3s ease-out; overflow-y: auto;">
+        <div id="editUserContent" style="padding: 32px;">
+            <div style="text-align: center; color: #6b7280;">Cargando...</div>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 20px 32px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
+            <button type="button" onclick="closeUserModal()" class="button secondary" style="flex: 1; padding: 12px 20px; font-weight: 600; border-radius: 10px; background: #e5e7eb; color: #1f2937; border: 0; cursor: pointer; transition: all 0.3s ease;">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Cambiar Clave -->
+<div id="passwordModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 16px; width: min(600px, 95vw); max-height: 90vh; box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: slideIn 0.3s ease-out; overflow-y: auto;">
+        <div id="passwordContent" style="padding: 32px;">
+            <div style="text-align: center; color: #6b7280;">Cargando...</div>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 20px 32px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
+            <button type="button" onclick="closePasswordModal()" class="button secondary" style="flex: 1; padding: 12px 20px; font-weight: 600; border-radius: 10px; background: #e5e7eb; color: #1f2937; border: 0; cursor: pointer; transition: all 0.3s ease;">Cancelar</button>
+        </div>
+    </div>
 </div>
 
 <div id="deleteConfirmModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(4px);">
@@ -425,6 +449,196 @@ function confirmProtectedDelete() {
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         closeProtectedDeleteConfirm();
+        closeUserModal();
+        closePasswordModal();
+    }
+});
+
+// Funciones para modal de editar usuario
+function openUserModal(userId) {
+    const editUserModal = document.getElementById('editUserModal');
+    const content = document.getElementById('editUserContent');
+    editUserModal.style.display = 'flex';
+    
+    fetch(`/users/${parseInt(userId)}/edit`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => response.text())
+        .then(html => {
+            // Extraer solo el contenido principal
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const container = doc.querySelector('.container');
+            if (container) {
+                content.innerHTML = container.innerHTML;
+            } else {
+                content.innerHTML = html;
+            }
+            
+            // Attach form submit handler
+            const form = content.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', handleUserFormSubmit);
+            }
+        })
+        .catch(error => {
+            content.innerHTML = '<p style="color: red;">Error al cargar el formulario</p>';
+            console.error('Error:', error);
+        });
+}
+
+function handleUserFormSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const actionUrl = form.getAttribute('action');
+    
+    fetch(actionUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => {
+            if (response.ok) {
+                // Success - close modal and reload or update
+                closeUserModal();
+                // Reload the page to show updated user
+                setTimeout(() => location.reload(), 300);
+            } else {
+                // Error response - show the form again with errors
+                return response.text().then(html => {
+                    const content = document.getElementById('editUserContent');
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const container = doc.querySelector('.container');
+                    if (container) {
+                        content.innerHTML = container.innerHTML;
+                    } else {
+                        content.innerHTML = html;
+                    }
+                    // Re-attach form handler
+                    const newForm = content.querySelector('form');
+                    if (newForm) {
+                        newForm.addEventListener('submit', handleUserFormSubmit);
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('editUserContent').innerHTML = '<p style="color: red;">Error al guardar</p>';
+        });
+}
+
+function closeUserModal() {
+    document.getElementById('editUserModal').style.display = 'none';
+}
+
+// Funciones para modal de cambiar clave
+function openPasswordModal(userId) {
+    const passwordModal = document.getElementById('passwordModal');
+    const content = document.getElementById('passwordContent');
+    passwordModal.style.display = 'flex';
+    
+    fetch(`/users/${parseInt(userId)}/password`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const container = doc.querySelector('.container');
+            if (container) {
+                content.innerHTML = container.innerHTML;
+            } else {
+                content.innerHTML = html;
+            }
+            
+            // Attach form submit handler
+            const form = content.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', handlePasswordFormSubmit);
+            }
+        })
+        .catch(error => {
+            content.innerHTML = '<p style="color: red;">Error al cargar el formulario</p>';
+            console.error('Error:', error);
+        });
+}
+
+function handlePasswordFormSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const actionUrl = form.getAttribute('action');
+    
+    fetch(actionUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => {
+            if (response.ok) {
+                // Success - close modal
+                closePasswordModal();
+                // Show success message
+                setTimeout(() => location.reload(), 300);
+            } else {
+                // Error response - show the form again with errors
+                return response.text().then(html => {
+                    const content = document.getElementById('passwordContent');
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const container = doc.querySelector('.container');
+                    if (container) {
+                        content.innerHTML = container.innerHTML;
+                    } else {
+                        content.innerHTML = html;
+                    }
+                    // Re-attach form handler
+                    const newForm = content.querySelector('form');
+                    if (newForm) {
+                        newForm.addEventListener('submit', handlePasswordFormSubmit);
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('passwordContent').innerHTML = '<p style="color: red;">Error al cambiar contraseña</p>';
+        });
+}
+
+function closePasswordModal() {
+    document.getElementById('passwordModal').style.display = 'none';
+}
+
+// Cerrar modales al hacer clic fuera
+document.addEventListener('DOMContentLoaded', function() {
+    const editUserModal = document.getElementById('editUserModal');
+    if (editUserModal) {
+        editUserModal.addEventListener('click', function(event) {
+            if (event.target === editUserModal) {
+                closeUserModal();
+            }
+        });
+    }
+    
+    const passwordModal = document.getElementById('passwordModal');
+    if (passwordModal) {
+        passwordModal.addEventListener('click', function(event) {
+            if (event.target === passwordModal) {
+                closePasswordModal();
+            }
+        });
     }
 });
 </script>

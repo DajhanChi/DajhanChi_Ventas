@@ -12,7 +12,17 @@
     </div>
     {% endif %}
 
-    <form method="post" class="card">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div style="background: {% if category == 'error' %}#fee2e2{% else %}#dcfce7{% endif %}; border-left: 4px solid {% if category == 'error' %}#ef4444{% else %}#10b981{% endif %}; padding: 16px; border-radius: 8px; margin-bottom: 20px; color: {% if category == 'error' %}#7f1d1d{% else %}#065f46{% endif %};">
+                    <p style="margin: 0;">{{ message }}</p>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('user_edit', user_id=user.id) if user else url_for('user_new') }}" class="card">
         <label for="username">👤 Nombre de Usuario <span style="color: #ef4444;">*</span></label>
         <input id="username" name="username" type="text" placeholder="Ej: juan.perez" required value="{{ user.username if user else '' }}" {% if is_protected %}readonly{% endif %} style="{% if is_protected %}background-color: #f3f4f6; cursor: not-allowed;{% endif %}">
         <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">{% if is_protected %}Este campo no puede ser modificado{% else %}Mínimo 3 caracteres, sin espacios{% endif %}</p>
