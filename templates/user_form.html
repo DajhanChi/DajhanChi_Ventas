@@ -26,8 +26,8 @@
         <label for="role">🎯 Rol <span style="color: #ef4444;">*</span></label>
         <select id="role" name="role" required>
             <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>Administrador</option>
-            <option value="vendor" {% if user and user.role == 'vendor' %}selected{% endif %}>Vendedor</option>
-            <option value="manager" {% if user and user.role == 'manager' %}selected{% endif %}>Gerente</option>
+            <option value="gerente" {% if user and user.role == 'gerente' %}selected{% endif %}>Gerente</option>
+            <option value="vendedor" {% if user and user.role == 'vendedor' %}selected{% endif %}>Vendedor</option>
         </select>
 
         {% if user %}

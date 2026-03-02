@@ -1,0 +1,1064 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Asegurar que permissions existe con estructura completa -->
+{% if not permissions %}
+    {% set permissions = {
+        'admin': {'dashboard': True, 'products': True, 'sales': True, 'debts': True, 'reports': True, 'users': True, 'settings': True},
+        'gerente': {'dashboard': True, 'products': True, 'sales': True, 'debts': True, 'reports': True, 'users': False, 'settings': False},
+        'vendedor': {'dashboard': False, 'products': True, 'sales': True, 'debts': False, 'reports': False, 'users': False, 'settings': False}
+    } %}
+{% endif %}
+
+{% if not edit_user %}
+    {% set edit_user = {'id': session.get('user_id'), 'username': session.get('username', 'Usuario'), 'role': session.get('role', 'vendedor'), 'is_active': True} %}
+{% endif %}
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .settings-wrapper {
+        min-height: calc(100vh - 60px);
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%);
+        background-size: 200% 200%;
+        animation: gradient-shift 15s ease infinite;
+        padding: 40px 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    @keyframes gradient-shift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Efecto de partículas flotantes */
+    .settings-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: 
+            radial-gradient(circle at 20% 30%, rgba(255,255,255,0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 70%, rgba(255,255,255,0.08) 0%, transparent 50%),
+            radial-gradient(circle at 40% 80%, rgba(255,255,255,0.06) 0%, transparent 50%);
+        pointer-events: none;
+        animation: float-particles 20s ease-in-out infinite;
+    }
+
+    @keyframes float-particles {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-20px) scale(1.05); }
+    }
+
+    .settings-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Header con selector de usuario */
+    .settings-top {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        padding: 32px;
+        margin-bottom: 32px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        animation: slide-down 0.6s ease-out;
+    }
+
+    @keyframes slide-down {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .settings-title {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .settings-title span {
+        font-size: 40px;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        animation: bounce-icon 2s ease-in-out infinite;
+    }
+
+    @keyframes bounce-icon {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        25% { transform: translateY(-10px) rotate(-5deg); }
+        75% { transform: translateY(-5px) rotate(5deg); }
+    }
+
+    .settings-title h1 {
+        font-size: 32px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.5px;
+    }
+
+    .user-selector {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 16px 20px;
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+    }
+
+    .user-selector label {
+        font-weight: 700;
+        color: #495057;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .user-selector select {
+        padding: 12px 16px;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: inherit;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        min-width: 220px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .user-selector select:hover {
+        border-color: #1e40af;
+        box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25);
+    }
+
+    .user-selector select:focus {
+        outline: none;
+        border-color: #1e40af;
+        box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.15);
+    }
+
+    .user-badge {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+        border-radius: 16px;
+        margin-bottom: 40px;
+        box-shadow: 0 10px 30px rgba(30, 58, 138, 0.4);
+        animation: slide-right 0.8s ease-out;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    @keyframes slide-right {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .user-badge span:first-child {
+        font-size: 28px;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+
+    .user-badge-name {
+        font-weight: 700;
+        font-size: 18px;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .user-badge-role {
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* Grid de tarjetas */
+    .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .settings-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        padding: 32px;
+        margin-bottom: 40px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 2px solid #1e3a8a;
+        animation: fade-in-up 0.6s ease-out both;
+    }
+
+    .settings-card:nth-child(1) { animation-delay: 0.1s; }
+    .settings-card:nth-child(2) { animation-delay: 0.2s; }
+
+    @keyframes fade-in-up {
+        from {
+            opacity: 0;
+            transform: translateY(40px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .settings-card:hover {
+        transform: translateY(-8px) scale(1.01);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 3px solid;
+        border-image: linear-gradient(90deg, #1e3a8a 0%, #1e40af 100%) 1;
+    }
+
+    .card-header-icon {
+        font-size: 36px;
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+        animation: pulse-icon 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-icon {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+
+    .card-header-title {
+        font-size: 22px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 10px;
+        font-size: 15px;
+        letter-spacing: 0.2px;
+    }
+
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 14px 16px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 500;
+        font-family: inherit;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .form-group input:hover,
+    .form-group select:hover {
+        border-color: #cbd5e0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #1e40af;
+        box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.15), 0 4px 12px rgba(30, 64, 175, 0.25);
+        transform: translateY(-2px);
+    }
+
+    .form-group input[type="number"] {
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .help-text {
+        font-size: 13px;
+        color: #718096;
+        margin-top: 8px;
+        line-height: 1.5;
+    }
+
+    /* Tabla de permisos */
+    .permissions-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 20px;
+        overflow: hidden;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        table-layout: auto;
+    }
+
+    .permissions-table thead {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    }
+
+    .permissions-table th {
+        padding: 18px 16px;
+        text-align: left;
+        font-weight: 700;
+        color: white;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border: none;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .permissions-table th:first-child {
+        border-top-left-radius: 12px;
+        width: 55%;
+        text-align: left;
+    }
+
+    .permissions-table th:not(:first-child) {
+        width: 15%;
+        text-align: center;
+        padding: 18px 8px;
+    }
+
+    .permissions-table th:last-child {
+        border-top-right-radius: 12px;
+    }
+
+    .permissions-table td {
+        padding: 18px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 14px;
+        background: white;
+        transition: all 0.2s ease;
+        word-wrap: break-word;
+        overflow: hidden;
+    }
+
+    .permissions-table td:first-child {
+        width: 55%;
+    }
+
+    .permissions-table td:not(:first-child) {
+        width: 15%;
+        text-align: center;
+        padding: 18px 8px;
+    }
+
+    .permissions-table tbody tr {
+        background: white;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-bottom: 1px solid #e5e7eb;
+        animation: slideIn 0.4s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .permissions-table tbody tr:nth-child(1) { animation-delay: 0.05s; }
+    .permissions-table tbody tr:nth-child(2) { animation-delay: 0.1s; }
+    .permissions-table tbody tr:nth-child(3) { animation-delay: 0.15s; }
+    .permissions-table tbody tr:nth-child(4) { animation-delay: 0.2s; }
+    .permissions-table tbody tr:nth-child(5) { animation-delay: 0.25s; }
+    .permissions-table tbody tr:nth-child(6) { animation-delay: 0.3s; }
+    .permissions-table tbody tr:nth-child(7) { animation-delay: 0.35s; }
+
+    .permissions-table tbody tr:hover {
+        background: #f9fafb;
+        transform: translateX(2px);
+        box-shadow: -4px 0 0 0 #1e40af, 0 2px 8px rgba(30, 64, 175, 0.1);
+    }
+
+    .permissions-table tbody tr:last-child td:first-child {
+        border-bottom-left-radius: 12px;
+    }
+
+    .permissions-table tbody tr:last-child td:last-child {
+        border-bottom-right-radius: 12px;
+    }
+
+    .module-name {
+        font-weight: 600;
+        color: #1f2937;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+    }
+
+    .checkbox-cell {
+        text-align: center;
+        padding: 18px 8px !important;
+        width: 15%;
+        display: table-cell;
+        vertical-align: middle;
+    }
+
+    .checkbox-cell input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        accent-color: #1e40af;
+        transition: all 0.2s ease;
+    }
+
+    .checkbox-cell input[type="checkbox"]:hover {
+        transform: scale(1.2);
+    }
+
+    .checkbox-cell input[type="checkbox"]:active {
+        transform: scale(0.95);
+    }
+
+    .role-header {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 11px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    .role-admin {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .role-gerente {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        color: #78350f;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .role-vendedor {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    /* Info box */
+    .info-box {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        padding: 18px 20px;
+        border-radius: 12px;
+        margin-top: 20px;
+        border-left: 5px solid #1e40af;
+        font-size: 14px;
+        color: #1e3a8a;
+        line-height: 1.6;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+
+    .info-box:hover {
+        transform: translateX(4px);
+        box-shadow: 0 6px 16px rgba(30, 64, 175, 0.2);
+    }
+
+    .info-box strong {
+        color: #1e3a8a;
+        font-weight: 700;
+    }
+
+    /* Botones */
+    .button-group {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        margin-top: 40px;
+        animation: fade-in-up 0.6s ease-out 0.4s both;
+    }
+
+    .button {
+        padding: 16px 32px;
+        border: none;
+        border-radius: 14px;
+        font-weight: 700;
+        font-size: 15px;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s;
+    }
+
+    .button:hover::before {
+        left: 100%;
+    }
+
+    .button.primary {
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+        color: white;
+        border: 2px solid rgba(255,255,255,0.2);
+        box-shadow: 0 8px 24px rgba(30, 58, 138, 0.4);
+    }
+
+    .button.primary:hover {
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 12px 36px rgba(30, 64, 175, 0.5);
+    }
+
+    .button.primary:active {
+        transform: translateY(-2px) scale(0.98);
+    }
+
+    .button.secondary {
+        background: rgba(255, 255, 255, 0.95);
+        color: #1e3a8a;
+        border: 2px solid #1e40af;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .button.secondary:hover {
+        background: white;
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 8px 24px rgba(30, 64, 175, 0.25);
+        color: #1e3a8a;
+        border-color: #1e3a8a;
+    }
+
+    /* Guía de colores mejorada */
+    .color-guide {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 28px;
+        padding: 20px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 14px;
+        box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .color-guide-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: transform 0.2s ease;
+    }
+
+    .color-guide-item:hover {
+        transform: translateX(4px);
+    }
+
+    .color-guide-box {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+    }
+
+    .color-guide-item:hover .color-guide-box {
+        transform: scale(1.15) rotate(5deg);
+    }
+
+    .color-guide-text {
+        font-size: 13px;
+        color: #495057;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    @media (max-width: 768px) {
+        .settings-wrapper {
+            padding: 24px 12px;
+        }
+
+        .settings-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .settings-top {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 24px;
+        }
+
+        .settings-title h1 {
+            font-size: 26px;
+        }
+
+        .settings-title span {
+            font-size: 32px;
+        }
+
+        .user-selector {
+            width: 100%;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 12px 16px;
+        }
+
+        .user-selector select {
+            width: 100%;
+        }
+
+        .color-guide {
+            grid-template-columns: 1fr;
+            padding: 16px;
+        }
+
+        .permissions-table {
+            font-size: 12px;
+            table-layout: auto;
+        }
+
+        .permissions-table th:first-child {
+            width: 55%;
+        }
+
+        .permissions-table th:not(:first-child) {
+            width: 15%;
+            padding: 12px 6px;
+        }
+
+        .permissions-table td:first-child {
+            width: 55%;
+        }
+
+        .permissions-table td:not(:first-child) {
+            width: 15%;
+            padding: 12px 6px;
+        }
+
+        .permissions-table th,
+        .permissions-table td {
+            padding: 12px 8px;
+        }
+
+        .role-header {
+            font-size: 10px;
+            padding: 6px 10px;
+        }
+
+        .module-name {
+            font-size: 13px;
+        }
+
+        .checkbox-cell input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+
+        .button-group {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .button {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .settings-card {
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .card-header-icon {
+            font-size: 28px;
+        }
+
+        .card-header-title {
+            font-size: 18px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .permissions-table th,
+        .permissions-table td {
+            padding: 8px 6px;
+        }
+
+        .checkbox-cell {
+            width: 60px;
+        }
+    }
+</style>
+
+<div class="settings-wrapper">
+    <div class="settings-container">
+        <!-- Header con selector de usuario -->
+        <div class="settings-top">
+            <div class="settings-title">
+                <span>⚙️</span>
+                <h1>Ajustes</h1>
+            </div>
+            
+            {% if current_user and current_user.role == 'admin' and all_users %}
+            <div class="user-selector">
+                <label for="user_select">👤 Editar Usuario:</label>
+                <select id="user_select" onchange="window.location.href = '{{ url_for('settings') }}?user_id=' + this.value">
+                    {% for user in all_users %}
+                    <option value="{{ user.id }}" {% if user.id == edit_user.id %}selected{% endif %}>
+                        {{ user.username }} ({{ user.role }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Información del usuario actual -->
+        <div class="user-badge">
+            <span>👤</span>
+            <div style="flex: 1;">
+                <div class="user-badge-name">{{ edit_user.username }}</div>
+                <div class="user-badge-role">{{ edit_user.role.upper() }}</div>
+            </div>
+            {% if not edit_user.is_active %}
+            <span style="padding: 8px 16px; background: rgba(220, 38, 38, 0.2); border: 2px solid rgba(220, 38, 38, 0.4); border-radius: 8px; color: white; font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 6px; backdrop-filter: blur(10px);">
+                <span style="width: 8px; height: 8px; background: #dc2626; border-radius: 50%; animation: pulse-dot 2s infinite;"></span>
+                INACTIVO
+            </span>
+            <style>
+                @keyframes pulse-dot {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.5; transform: scale(0.8); }
+                }
+            </style>
+            {% endif %}
+        </div>
+
+        <form method="POST" action="{{ url_for('settings') }}{% if edit_user.id != session.get('user_id') %}?user_id={{ edit_user.id }}{% endif %}">
+            <!-- Card: Control de Acceso por Rol -->
+            <div class="settings-card">
+                <div class="card-header">
+                    <div class="card-header-icon">🔐</div>
+                    <div class="card-header-title">Control de Acceso por Rol</div>
+                </div>
+
+                <p style="color: #718096; margin-bottom: 20px; font-size: 14px; font-weight: 500; line-height: 1.6;">
+                    Define qué módulos puede acceder cada rol de usuario. Marca <span style="color: #1e40af; font-weight: 700;">✓</span> para permitir acceso:
+                </p>
+
+                <table class="permissions-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">📋 Módulo</th>
+                            {% if session.get('role') == 'admin' %}
+                            <th class="checkbox-cell">
+                                <span class="role-header role-admin">👑 Admin</span>
+                            </th>
+                            <th class="checkbox-cell">
+                                <span class="role-header role-gerente">📊 Gerente</span>
+                            </th>
+                            <th class="checkbox-cell">
+                                <span class="role-header role-vendedor">💼 Vend.</span>
+                            </th>
+                            {% elif session.get('role') == 'gerente' %}
+                            <th class="checkbox-cell">
+                                <span class="role-header role-gerente">📊 Gerente</span>
+                            </th>
+                            {% else %}
+                            <th class="checkbox-cell">
+                                <span class="role-header role-vendedor">💼 Vendedor</span>
+                            </th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="module-name">📈 Dashboard</td>
+                            {% if session.get('role') == 'admin' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="admin_dashboard" {% if permissions['admin']['dashboard'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_dashboard" {% if permissions['gerente']['dashboard'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_dashboard" {% if permissions['vendedor']['dashboard'] %}checked{% endif %}>
+                            </td>
+                            {% elif session.get('role') == 'gerente' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_dashboard" {% if permissions['gerente']['dashboard'] %}checked{% endif %}>
+                            </td>
+                            {% else %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_dashboard" {% if permissions['vendedor']['dashboard'] %}checked{% endif %}>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        <tr>
+                            <td class="module-name">📦 Productos</td>
+                            {% if session.get('role') == 'admin' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="admin_products" {% if permissions['admin']['products'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_products" {% if permissions['gerente']['products'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_products" {% if permissions['vendedor']['products'] %}checked{% endif %}>
+                            </td>
+                            {% elif session.get('role') == 'gerente' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_products" {% if permissions['gerente']['products'] %}checked{% endif %}>
+                            </td>
+                            {% else %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_products" {% if permissions['vendedor']['products'] %}checked{% endif %}>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        <tr>
+                            <td class="module-name">💰 Ventas</td>
+                            {% if session.get('role') == 'admin' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="admin_sales" {% if permissions['admin']['sales'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_sales" {% if permissions['gerente']['sales'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_sales" {% if permissions['vendedor']['sales'] %}checked{% endif %}>
+                            </td>
+                            {% elif session.get('role') == 'gerente' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_sales" {% if permissions['gerente']['sales'] %}checked{% endif %}>
+                            </td>
+                            {% else %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_sales" {% if permissions['vendedor']['sales'] %}checked{% endif %}>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        <tr>
+                            <td class="module-name">📝 Deudas</td>
+                            {% if session.get('role') == 'admin' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="admin_debts" {% if permissions['admin']['debts'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_debts" {% if permissions['gerente']['debts'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_debts" {% if permissions['vendedor']['debts'] %}checked{% endif %}>
+                            </td>
+                            {% elif session.get('role') == 'gerente' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_debts" {% if permissions['gerente']['debts'] %}checked{% endif %}>
+                            </td>
+                            {% else %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_debts" {% if permissions['vendedor']['debts'] %}checked{% endif %}>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        <tr>
+                            <td class="module-name">📋 Reportes</td>
+                            {% if session.get('role') == 'admin' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="admin_reports" {% if permissions['admin']['reports'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_reports" {% if permissions['gerente']['reports'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_reports" {% if permissions['vendedor']['reports'] %}checked{% endif %}>
+                            </td>
+                            {% elif session.get('role') == 'gerente' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_reports" {% if permissions['gerente']['reports'] %}checked{% endif %}>
+                            </td>
+                            {% else %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_reports" {% if permissions['vendedor']['reports'] %}checked{% endif %}>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        <tr>
+                            <td class="module-name">👥 Usuarios</td>
+                            {% if session.get('role') == 'admin' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="admin_users" {% if permissions['admin']['users'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_users" {% if permissions['gerente']['users'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_users" {% if permissions['vendedor']['users'] %}checked{% endif %}>
+                            </td>
+                            {% elif session.get('role') == 'gerente' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_users" {% if permissions['gerente']['users'] %}checked{% endif %}>
+                            </td>
+                            {% else %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_users" {% if permissions['vendedor']['users'] %}checked{% endif %}>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        <tr>
+                            <td class="module-name">⚙️ Ajustes</td>
+                            {% if session.get('role') == 'admin' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="admin_settings" {% if permissions['admin']['settings'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_settings" {% if permissions['gerente']['settings'] %}checked{% endif %}>
+                            </td>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_settings" {% if permissions['vendedor']['settings'] %}checked{% endif %}>
+                            </td>
+                            {% elif session.get('role') == 'gerente' %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="gerente_settings" {% if permissions['gerente']['settings'] %}checked{% endif %}>
+                            </td>
+                            {% else %}
+                            <td class="checkbox-cell">
+                                <input type="checkbox" name="vendedor_settings" {% if permissions['vendedor']['settings'] %}checked{% endif %}>
+                            </td>
+                            {% endif %}
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box">
+                    <strong>💡 Consejo:</strong> Los cambios se guardan al hacer clic en "💾 Guardar Ajustes". Los usuarios verán solo las pestañas permitidas según su rol.
+                </div>
+            </div>
+
+            <!-- Card: Control de Stock Mínimo -->
+            <div class="settings-card">
+                <div class="card-header">
+                    <div class="card-header-icon">📦</div>
+                    <div class="card-header-title">Control de Stock Mínimo</div>
+                </div>
+
+                <p style="color: #718096; margin-bottom: 20px; font-size: 14px; font-weight: 500;">
+                    Define el threshold de alerta. Los colores en la tabla de Productos se actualizarán automáticamente:
+                </p>
+
+                <!-- Color guide -->
+                <div class="color-guide">
+                    <div class="color-guide-item">
+                        <div class="color-guide-box" style="background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);"></div>
+                        <span class="color-guide-text"><strong>Rojo:</strong> Stock = 0</span>
+                    </div>
+                    <div class="color-guide-item">
+                        <div class="color-guide-box" style="background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);"></div>
+                        <span class="color-guide-text"><strong>Amarillo:</strong> &lt; Threshold</span>
+                    </div>
+                    <div class="color-guide-item">
+                        <div class="color-guide-box" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);"></div>
+                        <span class="color-guide-text"><strong>Verde:</strong> ≥ Threshold</span>
+                    </div>
+                </div>
+
+                <!-- Threshold input -->
+                <div class="form-group" style="max-width: 320px; position: relative;">
+                    <label for="stock_threshold">📊 Valor de Alerta (Threshold)</label>
+                    <div style="position: relative;">
+                        <input type="number" id="stock_threshold" name="stock_yellow_threshold" value="{{ settings.stock_yellow_threshold }}" min="1" required style="padding-right: 50px;">
+                        <span style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-weight: 700; color: #1e40af; font-size: 14px;">unidades</span>
+                    </div>
+                    <p class="help-text">💡 Stock menor que este valor se mostrará en <strong style="color: #ed8936;">amarillo</strong>. Los cambios se reflejan en toda la aplicación.</p>
+                </div>
+
+                <div class="info-box">
+                    <strong>💡 Consejo:</strong> Cambiar este valor afectará cómo se ven los colores en la tabla de Productos, el Dashboard y todos los reportes.
+                </div>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="button-group">
+                <button type="submit" class="button primary">
+                    💾 Guardar Ajustes
+                </button>
+                <a href="{{ url_for('products') }}" class="button secondary">
+                    ← Volver
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+

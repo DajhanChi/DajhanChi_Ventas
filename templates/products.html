@@ -146,7 +146,7 @@
 </div>
 {% endif %}
 
-<div class="card" style="border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
+<div class="card animate-card-pop" style="border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
     {% if products %}
     <div class="table-scroll-container">
     <table class="products-table">
@@ -189,11 +189,11 @@
                     {% endif %}
                 </td>
                 <td style="text-align: center; vertical-align: middle;">
-                    {% if product.stock < 5 %}
+                    {% if product.stock == 0 %}
                     <div style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #991b1b; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 16px; border: 1px solid #fca5a5; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1);">
                         ⚠️ {{ product.stock }}
                     </div>
-                    {% elif product.stock < 10 %}
+                    {% elif product.stock < settings.stock_yellow_threshold %}
                     <div style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #78350f; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 16px; border: 1px solid #fcd34d; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.1);">
                         ⚡ {{ product.stock }}
                     </div>
@@ -475,7 +475,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
                             📦 Cantidad en Stock <span style="color: #ef4444;">*</span>
                         </label>
-                        <input name="stock" type="number" min="0" required placeholder="0" value="0"
+                        <input id="editStock" name="stock" type="number" min="0" required placeholder="0" value="0"
                                style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
                                onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)'"
                                onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">

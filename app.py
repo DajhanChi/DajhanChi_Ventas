@@ -66,6 +66,7 @@ class Product(db.Model):
     cost_cents = db.Column(db.Integer, nullable=False, default=0)
     price_cents = db.Column(db.Integer, nullable=False, default=0)
     stock = db.Column(db.Integer, nullable=False, default=0, index=True)
+    minimum_stock = db.Column(db.Integer, nullable=False, default=5)
     
     user = db.relationship("User", backref=db.backref("products", lazy=True))
 
@@ -110,6 +111,34 @@ class Payment(db.Model):
     sale = db.relationship("Sale", backref=db.backref("payments", lazy=True, cascade="all, delete-orphan"))
 
 
+class Settings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True, index=True)
+    stock_yellow_threshold = db.Column(db.Integer, nullable=False, default=10)
+    
+    # Permisos por rol: JSON con estructura {modulo: bool}
+    admin_permissions = db.Column(db.String(500), nullable=False, default='{"dashboard":true,"products":true,"sales":true,"debts":true,"reports":true,"users":true,"settings":true}')
+    gerente_permissions = db.Column(db.String(500), nullable=False, default='{"dashboard":true,"products":true,"sales":true,"debts":true,"reports":true,"users":false,"settings":false}')
+    vendedor_permissions = db.Column(db.String(500), nullable=False, default='{"dashboard":false,"products":true,"sales":true,"debts":false,"reports":false,"users":false,"settings":false}')
+    
+    user = db.relationship("User", backref=db.backref("settings", uselist=False))
+    
+    def get_role_permissions(self, role):
+        """Get permissions for a specific role"""
+        if role == "admin":
+            perms = self.admin_permissions
+        elif role == "gerente":
+            perms = self.gerente_permissions
+        else:  # vendedor
+            perms = self.vendedor_permissions
+        
+        try:
+            return json.loads(perms) if isinstance(perms, str) else perms
+        except:
+            # Default permissions if JSON is invalid
+            return {"dashboard": False, "products": False, "sales": False, "debts": False, "reports": False, "users": False, "settings": False}
+
+
 @app.before_request
 def init_db_once():
     global _db_initialized
@@ -126,6 +155,56 @@ def init_db_once():
         db.session.add(admin)
         db.session.commit()
     _db_initialized = True
+
+
+@app.context_processor
+def inject_user_permissions():
+    """Inject user permissions into all templates"""
+    user_id = session.get("user_id")
+    user_role = session.get("role", "vendedor")
+    
+    # Default permissions by role
+    default_permissions = {
+        "admin": {
+            "dashboard": True,
+            "products": True,
+            "sales": True,
+            "debts": True,
+            "reports": True,
+            "users": True,
+            "settings": True
+        },
+        "gerente": {
+            "dashboard": True,
+            "products": True,
+            "sales": True,
+            "debts": True,
+            "reports": True,
+            "users": False,
+            "settings": False
+        },
+        "vendedor": {
+            "dashboard": False,
+            "products": True,
+            "sales": True,
+            "debts": False,
+            "reports": False,
+            "users": False,
+            "settings": False
+        }
+    }
+    
+    permissions = default_permissions.get(user_role, default_permissions["vendedor"])
+    
+    if user_id:
+        try:
+            settings = get_user_settings(user_id)
+            permissions = settings.get_role_permissions(user_role)
+        except Exception as e:
+            # Log error for debugging but use defaults
+            print(f"Error getting user permissions: {e}")
+    
+    return {"user_permissions": permissions}
 
 
 @app.template_filter("money")
@@ -147,6 +226,16 @@ def parse_price(value):
         return None
     cents = int((amount * 100).quantize(Decimal("1")))
     return cents
+
+
+def get_user_settings(user_id):
+    """Get or create user settings with defaults"""
+    settings = Settings.query.filter_by(user_id=user_id).first()
+    if not settings:
+        settings = Settings(user_id=user_id, stock_yellow_threshold=10)
+        db.session.add(settings)
+        db.session.commit()
+    return settings
 
 
 def serialize_products(products):
@@ -250,6 +339,26 @@ def ensure_recent_backup():
         create_backup()
 
 
+def get_home_page_for_user(user_id, role):
+    """Get the appropriate home page based on user permissions"""
+    settings = get_user_settings(user_id)
+    permissions = settings.get_role_permissions(role)
+    
+    # Priority order for home page
+    if permissions.get("dashboard", False):
+        return "dashboard"
+    elif permissions.get("sales", False):
+        return "sales"
+    elif permissions.get("products", False):
+        return "products"
+    elif permissions.get("debts", False):
+        return "debts"
+    elif permissions.get("reports", False):
+        return "reports"
+    else:
+        return "logout"  # If no permissions, logout
+
+
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -258,6 +367,31 @@ def login_required(view):
         return view(*args, **kwargs)
 
     return wrapped
+
+
+def require_permission(module):
+    """Decorador para verificar permisos de acceso a módulos específicos"""
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            user_id = session.get("user_id")
+            role = session.get("role")
+            
+            if not user_id or not role:
+                return redirect(url_for("login"))
+            
+            settings = get_user_settings(user_id)
+            permissions = settings.get_role_permissions(role)
+            
+            if not permissions.get(module, False):
+                flash("❌ No tienes permiso para acceder a esta sección", "error")
+                # Redirect to user's home page instead of dashboard
+                home_page = get_home_page_for_user(user_id, role)
+                return redirect(url_for(home_page))
+            
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -270,7 +404,9 @@ def login():
             session["user_id"] = user.id
             session["username"] = user.username
             session["role"] = user.role
-            return redirect(url_for("dashboard"))
+            # Redirect to appropriate home page based on user permissions
+            home_page = get_home_page_for_user(user.id, user.role)
+            return redirect(url_for(home_page))
         flash("Credenciales invalidas", "error")
     return render_template("login.html")
 
@@ -283,23 +419,28 @@ def logout():
 
 @app.route("/")
 @login_required
+@require_permission("dashboard")
 def dashboard():
     user_id = session.get("user_id")
+    settings = get_user_settings(user_id)
     recent_sales = Sale.query.filter_by(user_id=user_id).options(db.joinedload(Sale.items)).order_by(Sale.created_at.desc()).limit(5).all()
-    low_stock = Product.query.filter(Product.user_id == user_id, Product.stock <= 5).order_by(Product.stock.asc()).limit(10).all()
+    low_stock = Product.query.filter(Product.user_id == user_id, Product.stock < settings.stock_yellow_threshold).order_by(Product.stock.asc()).limit(10).all()
     return render_template("dashboard.html", recent_sales=recent_sales, low_stock=low_stock)
 
 
 @app.route("/products")
 @login_required
+@require_permission("products")
 def products():
     user_id = session.get("user_id")
     items = Product.query.filter_by(user_id=user_id).order_by(Product.name.asc()).limit(200).all()
-    return render_template("products.html", products=items)
+    settings = get_user_settings(user_id)
+    return render_template("products.html", products=items, settings=settings)
 
 
 @app.route("/products/new", methods=["GET", "POST"])
 @login_required
+@require_permission("products")
 def product_new():
     if request.method == "POST":
         user_id = session.get("user_id")
@@ -352,6 +493,7 @@ def product_new():
 
 @app.route("/products/<int:product_id>/edit", methods=["GET", "POST"])
 @login_required
+@require_permission("products")
 def product_edit(product_id):
     user_id = session.get("user_id")
     product = Product.query.filter_by(id=product_id, user_id=user_id).first_or_404()
@@ -410,6 +552,7 @@ def product_edit(product_id):
 
 @app.route("/products/<int:product_id>/delete", methods=["POST"])
 @login_required
+@require_permission("products")
 def product_delete(product_id):
     user_id = session.get("user_id")
     product = Product.query.filter_by(id=product_id, user_id=user_id).first_or_404()
@@ -431,6 +574,7 @@ def product_delete(product_id):
 
 @app.route("/sales")
 @login_required
+@require_permission("sales")
 def sales():
     user_id = session.get("user_id")
     search_q = request.args.get("q", "").strip()
@@ -489,6 +633,7 @@ def sales():
 
 @app.route("/sales/new", methods=["GET", "POST"])
 @login_required
+@require_permission("sales")
 def sale_new():
     user_id = session.get("user_id")
     products = Product.query.filter_by(user_id=user_id).order_by(Product.name.asc()).all()
@@ -577,6 +722,7 @@ def sale_new():
 
 @app.route("/sales/<int:sale_id>/delete", methods=["POST"])
 @login_required
+@require_permission("sales")
 def sale_delete(sale_id):
     user_id = session.get("user_id")
     sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first_or_404()
@@ -608,6 +754,7 @@ def sale_delete(sale_id):
 
 @app.route("/sales/<int:sale_id>/edit", methods=["GET", "POST"])
 @login_required
+@require_permission("sales")
 def sale_edit(sale_id):
     user_id = session.get("user_id")
     sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first_or_404()
@@ -752,6 +899,7 @@ def sale_edit(sale_id):
 
 @app.route("/debts")
 @login_required
+@require_permission("debts")
 def debts():
     user_id = session.get("user_id")
     # Obtener todas las ventas con deuda pendiente del usuario actual
@@ -872,6 +1020,7 @@ def debts():
 
 @app.route("/debts/customer/payment", methods=["GET", "POST"])
 @login_required
+@require_permission("debts")
 def customer_payment_register():
     user_id = session.get("user_id")
     customer_key = request.args.get("customer", "").strip()
@@ -987,6 +1136,7 @@ def customer_payment_register():
 
 @app.route("/debts/customer/receipt")
 @login_required
+@require_permission("debts")
 def debt_customer_receipt():
     user_id = session.get("user_id")
     customer_key = request.args.get("customer", "").strip()
@@ -1070,6 +1220,7 @@ def debt_customer_receipt():
 
 @app.route("/debts/<int:sale_id>/payment", methods=["GET", "POST"])
 @login_required
+@require_permission("debts")
 def payment_register(sale_id):
     user_id = session.get("user_id")
     sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first_or_404()
@@ -1121,6 +1272,7 @@ def payment_register(sale_id):
 
 @app.route("/reports")
 @login_required
+@require_permission("reports")
 def reports():
     user_id = session.get("user_id")
     today_start = datetime.combine(date.today(), datetime.min.time())
@@ -1167,6 +1319,7 @@ def reports():
 
 @app.route("/users")
 @login_required
+@require_permission("users")
 def users():
     users_list = User.query.order_by(User.username.asc()).all()
     return render_template("users.html", users=users_list)
@@ -1174,6 +1327,7 @@ def users():
 
 @app.route("/users/new", methods=["GET", "POST"])
 @login_required
+@require_permission("users")
 def user_new():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -1207,6 +1361,7 @@ def user_new():
 
 @app.route("/users/<int:user_id>/edit", methods=["GET", "POST"])
 @login_required
+@require_permission("users")
 def user_edit(user_id):
     user = User.query.get_or_404(user_id)
     is_protected_user = user.username == PROTECTED_USERNAME
@@ -1250,6 +1405,7 @@ def user_edit(user_id):
 
 @app.route("/users/<int:user_id>/delete", methods=["POST"])
 @login_required
+@require_permission("users")
 def user_delete(user_id):
     user = User.query.get_or_404(user_id)
     
@@ -1265,14 +1421,38 @@ def user_delete(user_id):
         return redirect(url_for("users"))
 
     username = user.username
-    db.session.delete(user)
-    db.session.commit()
-    flash(f"Usuario '{username}' eliminado", "success")
+    
+    try:
+        # Eliminar primero todos los datos relacionados con el usuario
+        # 1. Eliminar SaleItems asociados a las ventas del usuario
+        sale_ids = [sale.id for sale in Sale.query.filter_by(user_id=user_id).all()]
+        if sale_ids:
+            SaleItem.query.filter(SaleItem.sale_id.in_(sale_ids)).delete(synchronize_session=False)
+        
+        # 2. Eliminar todas las ventas del usuario
+        Sale.query.filter_by(user_id=user_id).delete()
+        
+        # 3. Eliminar todos los productos del usuario
+        Product.query.filter_by(user_id=user_id).delete()
+        
+        # 4. Eliminar settings del usuario
+        Settings.query.filter_by(user_id=user_id).delete()
+        
+        # 5. Finalmente eliminar el usuario
+        db.session.delete(user)
+        db.session.commit()
+        
+        flash(f"Usuario '{username}' y todos sus datos eliminados correctamente", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error al eliminar usuario: {str(e)}", "error")
+    
     return redirect(url_for("users"))
 
 
 @app.route("/users/<int:user_id>/password", methods=["GET", "POST"])
 @login_required
+@require_permission("users")
 def user_change_password(user_id):
     user = User.query.get_or_404(user_id)
     is_protected_user = user.username == PROTECTED_USERNAME
@@ -1319,8 +1499,95 @@ def user_change_password(user_id):
         db.session.commit()
         flash("Contraseña actualizada", "success")
         return redirect(url_for("users"))
-
+    
+    # Método GET: mostrar el formulario
     return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self)
+
+
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+@require_permission("settings")
+def settings():
+    user_id = session.get("user_id")
+    user_role = session.get("role", "vendedor")
+    if not user_id:
+        return redirect(url_for("login"))
+    
+    # Obtener el usuario actual para verificar si es admin
+    current_user = User.query.get(user_id)
+    
+    # Determinar qué usuario se va a editar
+    edit_user_id = user_id
+    if current_user and current_user.role == "admin":
+        # Si es admin, puede seleccionar otro usuario
+        selected_user_id = request.args.get("user_id", type=int)
+        if selected_user_id:
+            selected_user = User.query.get(selected_user_id)
+            if selected_user:
+                edit_user_id = selected_user_id
+    
+    edit_user = User.query.get(edit_user_id)
+    if not edit_user:
+        flash("Usuario no encontrado", "error")
+        return redirect(url_for("settings"))
+    
+    settings_obj = get_user_settings(edit_user_id)
+    all_users = []
+    if current_user and current_user.role == "admin":
+        all_users = User.query.all()
+    
+    if request.method == "POST":
+        try:
+            threshold = int(request.form.get("stock_yellow_threshold", "10"))
+            if threshold < 1:
+                flash("El threshold debe ser mayor a 0", "error")
+            else:
+                settings_obj.stock_yellow_threshold = threshold
+            
+            # Procesar permisos por rol
+            modules = ["dashboard", "products", "sales", "debts", "reports", "users", "settings"]
+            
+            # Determinar qué roles puede modificar el usuario actual
+            if current_user.role == "admin":
+                # Admin puede modificar todos los roles
+                roles_to_update = ["admin", "gerente", "vendedor"]
+            else:
+                # Otros roles solo pueden modificar su propio rol
+                roles_to_update = [current_user.role]
+            
+            for role in roles_to_update:
+                perms = {}
+                for module in modules:
+                    checkbox_name = f"{role}_{module}"
+                    perms[module] = checkbox_name in request.form
+                
+                if role == "admin":
+                    settings_obj.admin_permissions = json.dumps(perms)
+                elif role == "gerente":
+                    settings_obj.gerente_permissions = json.dumps(perms)
+                else:  # vendedor
+                    settings_obj.vendedor_permissions = json.dumps(perms)
+            
+            db.session.commit()
+            flash("Ajustes actualizado correctamente", "success")
+            # Recargar los datos actualizados
+            settings_obj = get_user_settings(edit_user_id)
+        except (ValueError, Exception) as e:
+            flash(f"Error al guardar: {str(e)}", "error")
+    
+    # Preparar datos de permisos para el template
+    permissions_data = {
+        "admin": settings_obj.get_role_permissions("admin"),
+        "gerente": settings_obj.get_role_permissions("gerente"),
+        "vendedor": settings_obj.get_role_permissions("vendedor")
+    }
+    
+    return render_template("settings.html", 
+                         settings=settings_obj, 
+                         edit_user=edit_user,
+                         current_user=current_user,
+                         all_users=all_users,
+                         permissions=permissions_data)
 
 
 if __name__ == "__main__":

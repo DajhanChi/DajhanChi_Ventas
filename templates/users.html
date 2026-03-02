@@ -210,7 +210,7 @@
     <button type="button" class="button" data-href="{{ url_for('user_new') }}" onclick="window.location.href=this.getAttribute('data-href')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 700; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">➕ Nuevo Usuario</button>
 </div>
 
-<div class="card" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
+<div class="card animate-card-pop" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
     {% if users %}
     <div class="table-scroll-container">
         <table class="users-table">
@@ -252,7 +252,7 @@
                                     <button type="button" class="action-btn delete" data-id="{{ user.id }}" data-name="{{ user.username }}" data-url="{{ url_for('user_delete', user_id=user.id) }}" onclick="openDeleteConfirm(this.dataset.id, this.dataset.name, this.dataset.url)">🗑️ Eliminar</button>
                                 {% endif %}
                             {% else %}
-                                <span class="user-own-account">👤 Tu cuenta</span>
+                                <button type="button" class="action-btn account" disabled style="opacity: 0.6; cursor: default;">👤 Tu cuenta</button>
                             {% endif %}
                         </div>
                     </td>
