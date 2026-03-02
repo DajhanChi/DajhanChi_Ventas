@@ -1,67 +1,431 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+.table-scroll-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 12px;
+}
+
+.table-scroll-container::-webkit-scrollbar {
+    width: 12px;
+}
+
+.table-scroll-container::-webkit-scrollbar-track {
+    background: #f9fafb;
+    border-radius: 10px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+    border-radius: 10px;
+    border: 2px solid #f9fafb;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.users-table thead th {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    text-align: left;
+    padding: 18px;
+    font-weight: 700;
+    color: white;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.users-table tbody tr {
+    background: white;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.users-table tbody tr:hover {
+    background: #f9fafb;
+    transform: translateX(2px);
+    box-shadow: -4px 0 0 0 #3b82f6, 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.users-table td {
+    padding: 16px;
+    word-wrap: break-word;
+    overflow: hidden;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.user-username {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 15px;
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.role-badge {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+    display: inline-block;
+    width: fit-content;
+}
+
+.status-active {
+    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+    color: #065f46;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid #a7f3d0;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.1);
+}
+
+.status-inactive {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #7f1d1d;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid #fca5a5;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 0;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-family: inherit;
+    font-weight: 600;
+    appearance: none;
+    -webkit-appearance: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    white-space: nowrap;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.action-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.action-btn.edit {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.action-btn.password {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.action-btn.delete {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.action-btn:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+.user-own-account {
+    color: #9ca3af;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 0;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+</style>
+
 <div class="page-head">
     <div>
         <h1>👥 Gestión de Usuarios</h1>
-        <p style="color: #6b7280; margin: 4px 0 0 0;">Administra los usuarios del sistema</p>
+        <p style="color: #6b7280; margin: 4px 0 0 0;">Administra los usuarios del sistema de manera segura</p>
     </div>
-    <a class="button" href="{{ url_for('user_new') }}">➕ Nuevo Usuario</a>
+    <button type="button" class="button" onclick="window.location.href='{{ url_for('user_new') }}'" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 700; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">➕ Nuevo Usuario</button>
 </div>
 
-<div class="card">
+<div class="card" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
     {% if users %}
-    <table>
-        <thead>
-            <tr>
-                <th>Usuario</th>
-                <th>Rol</th>
-                <th style="text-align: center;">Estado</th>
-                <th style="text-align: center;">Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for user in users %}
-            <tr>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px;">{{ user.username[0].upper() }}</div>
-                        <strong>{{ user.username }}</strong>
-                    </div>
-                </td>
-                <td>
-                    <span style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">
-                        {{ user.role }}
-                    </span>
-                </td>
-                <td style="text-align: center;">
-                    {% if user.is_active %}
-                    <span class="stock-high">✓ Activo</span>
-                    {% else %}
-                    <span class="stock-low">✕ Inactivo</span>
-                    {% endif %}
-                </td>
-                <td style="text-align: center;">
-                    <a href="{{ url_for('user_edit', user_id=user.id) }}" style="color: #3b82f6; font-weight: 600; margin-right: 12px;">✏️ Editar</a>
-                    <a href="{{ url_for('user_change_password', user_id=user.id) }}" style="color: #f59e0b; font-weight: 600; margin-right: 12px;">🔐 Contraseña</a>
-                    {% if user.id != session.get('user_id') %}
-                    <form method="post" action="{{ url_for('user_delete', user_id=user.id) }}" style="display: inline; margin: 0;">
-                        <button type="submit" class="danger" data-confirm="¿Eliminar este usuario?" data-confirm-title="Eliminar usuario" style="padding: 4px 8px; font-size: 12px; margin: 0; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🗑️ Eliminar</button>
-                    </form>
-                    {% else %}
-                    <span style="color: #9ca3af; font-size: 12px;">(Tu cuenta)</span>
-                    {% endif %}
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-scroll-container">
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th style="width: 120px;">Rol</th>
+                    <th style="text-align: center; width: 100px;">Estado</th>
+                    <th style="text-align: right; width: auto;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for user in users %}
+                <tr>
+                    <td>
+                        <div class="user-cell">
+                            <div class="user-avatar">{{ user.username[0].upper() }}</div>
+                            <span class="user-username">{{ user.username }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="role-badge">{{ user.role }}</span>
+                    </td>
+                    <td style="text-align: center;">
+                        {% if user.is_active %}
+                            <span class="status-active">✓ Activo</span>
+                        {% else %}
+                            <span class="status-inactive">✕ Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div class="action-buttons">
+                            <button type="button" class="action-btn edit" onclick="window.location.href='{{ url_for('user_edit', user_id=user.id) }}'">✏️ Editar</button>
+                            <button type="button" class="action-btn password" onclick="window.location.href='{{ url_for('user_change_password', user_id=user.id) }}'">🔐 Clave</button>
+                            {% if user.id != session.get('user_id') %}
+                                {% if user.username == 'dajhanchi' %}
+                                    <button type="button" class="action-btn delete" onclick="openProtectedDeleteConfirm('{{ user.id }}', '{{ user.username }}', '{{ url_for('user_delete', user_id=user.id) }}')">🗑️ Eliminar</button>
+                                {% else %}
+                                    <button type="button" class="action-btn delete" onclick="openDeleteConfirm('{{ user.id }}', '{{ user.username }}', '{{ url_for('user_delete', user_id=user.id) }}')">🗑️ Eliminar</button>
+                                {% endif %}
+                            {% else %}
+                                <span class="user-own-account">👤 Tu cuenta</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-    <div style="text-align: center; padding: 48px 0;">
+    <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%); border-radius: 12px;">
         <p style="font-size: 48px; margin: 0;">👥</p>
-        <h3 style="margin: 16px 0 8px 0;">No hay usuarios registrados</h3>
+        <h3 style="margin: 16px 0 8px 0; color: #1f2937;">No hay usuarios registrados</h3>
         <p style="color: #6b7280; margin: 0 0 20px 0;">Crea el primer usuario del sistema</p>
-        <a class="button" href="{{ url_for('user_new') }}">➕ Crear Usuario</a>
+        <button type="button" class="button" onclick="window.location.href='{{ url_for('user_new') }}'" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 700;">➕ Crear Usuario</button>
     </div>
     {% endif %}
 </div>
+
+<div id="deleteConfirmModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 16px; width: min(450px, 95vw); box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: slideIn 0.3s ease-out;">
+        <div style="padding: 32px 28px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #1f2937;">¿Eliminar este usuario?</h2>
+            <p style="margin: 0 0 24px 0; color: #6b7280; line-height: 1.5;">Esta acción no se puede deshacer. El usuario perderá acceso al sistema.</p>
+            <div style="padding: 16px; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px; margin-bottom: 24px;">
+                <p id="userNameConfirm" style="margin: 0; font-weight: 600; color: #7f1d1d;">Usuario: -</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 0 28px 28px 28px;">
+            <button type="button" onclick="closeDeleteConfirm()" class="button secondary" style="flex: 1; padding: 12px 20px; font-weight: 600; border-radius: 10px;">Cancelar</button>
+            <button type="button" id="confirmDeleteBtn" onclick="confirmDelete()" class="button" style="flex: 1; padding: 12px 20px; font-weight: 600; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: 0; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<div id="protectedDeleteModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 16px; width: min(500px, 95vw); box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: slideIn 0.3s ease-out;">
+        <div style="padding: 32px 28px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+            <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #1f2937;">¿Eliminar Usuario Protegido?</h2>
+            <p style="margin: 0 0 24px 0; color: #6b7280; line-height: 1.5;">Este usuario está protegido. Debes proporcionar la clave de acceso para eliminarlo.</p>
+            <div style="padding: 16px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; margin-bottom: 20px;">
+                <p id="protectedUserName" style="margin: 0 0 8px 0; font-weight: 600; color: #92400e;">Usuario: -</p>
+                <p style="margin: 0; font-size: 12px; color: #92400e;">⚠️ Esta acción no se puede deshacer</p>
+            </div>
+            <input type="password" id="protectedSecretInput" placeholder="🔑 Ingresa la clave de acceso" style="width: 100%; padding: 12px; border: 2px solid #f59e0b; border-radius: 8px; font-size: 14px; margin-bottom: 0; box-sizing: border-box;">
+            <p style="font-size: 12px; color: #6b7280; margin: 8px 0 0 0;">La clave de acceso es requerida</p>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 0 28px 28px 28px;">
+            <button type="button" onclick="closeProtectedDeleteConfirm()" class="button secondary" style="flex: 1; padding: 12px 20px; font-weight: 600; border-radius: 10px;">Cancelar</button>
+            <button type="button" onclick="confirmProtectedDelete()" class="button" style="flex: 1; padding: 12px 20px; font-weight: 600; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: 0; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">Eliminar Usuario</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+
+<script>
+let deleteData = { userId: null, deleteUrl: null };
+
+function openDeleteConfirm(userId, username, deleteUrl) {
+    deleteData.userId = userId;
+    deleteData.deleteUrl = deleteUrl;
+    
+    document.getElementById('userNameConfirm').textContent = '👤 Usuario: ' + username;
+    document.getElementById('deleteConfirmModal').style.display = 'flex';
+    document.getElementById('confirmDeleteBtn').focus();
+}
+
+function closeDeleteConfirm() {
+    document.getElementById('deleteConfirmModal').style.display = 'none';
+    deleteData.userId = null;
+    deleteData.deleteUrl = null;
+}
+
+function confirmDelete() {
+    if (deleteData.deleteUrl) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = deleteData.deleteUrl;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Cerrar modal con ESC
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeDeleteConfirm();
+    }
+});
+
+// Cerrar modal al hacer clic fuera
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('deleteConfirmModal');
+    if (modal) {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeDeleteConfirm();
+            }
+        });
+    }
+
+    // Modal para usuario protegido
+    const protectedModal = document.getElementById('protectedDeleteModal');
+    if (protectedModal) {
+        protectedModal.addEventListener('click', function(event) {
+            if (event.target === protectedModal) {
+                closeProtectedDeleteConfirm();
+            }
+        });
+    }
+});
+
+let protectedDeleteData = { userId: null, deleteUrl: null };
+
+function openProtectedDeleteConfirm(userId, username, deleteUrl) {
+    protectedDeleteData.userId = userId;
+    protectedDeleteData.deleteUrl = deleteUrl;
+    
+    document.getElementById('protectedUserName').textContent = '👤 ' + username;
+    document.getElementById('protectedDeleteModal').style.display = 'flex';
+    document.getElementById('protectedSecretInput').focus();
+}
+
+function closeProtectedDeleteConfirm() {
+    document.getElementById('protectedDeleteModal').style.display = 'none';
+    document.getElementById('protectedSecretInput').value = '';
+    protectedDeleteData.userId = null;
+    protectedDeleteData.deleteUrl = null;
+}
+
+function confirmProtectedDelete() {
+    const secretKey = document.getElementById('protectedSecretInput').value.trim();
+    
+    if (!secretKey) {
+        alert('⚠️ Debes ingresar la clave de acceso');
+        return;
+    }
+    
+    if (protectedDeleteData.deleteUrl) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = protectedDeleteData.deleteUrl;
+        
+        // Agregar campo oculto de clave secreta
+        const secretInput = document.createElement('input');
+        secretInput.type = 'hidden';
+        secretInput.name = 'secret_key';
+        secretInput.value = secretKey;
+        form.appendChild(secretInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// ESC para cerrar modal protegido
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeProtectedDeleteConfirm();
+    }
+});
+</script>
 {% endblock %}

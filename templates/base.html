@@ -33,7 +33,7 @@
                 <span>💰</span>
                 <span>Ventas</span>
             </a>
-            <a href="{{ url_for('debts') }}" class="nav-item" {% if request.endpoint in ['debts', 'payment_register'] %}data-active="true"{% endif %}>
+            <a href="{{ url_for('debts') }}" class="nav-item" {% if request.endpoint in ['debts', 'payment_register', 'customer_payment_register', 'debt_customer_receipt'] %}data-active="true"{% endif %}>
                 <span>📝</span>
                 <span>Deudas</span>
             </a>

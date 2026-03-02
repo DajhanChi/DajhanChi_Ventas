@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.receipt-wrapper {
+    max-width: 980px;
+    margin: 0 auto;
+    display: grid;
+    gap: 18px;
+}
+
+.receipt-card {
+    background: white;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+
+.receipt-header {
+    padding: 28px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.receipt-brand {
+    display: grid;
+    gap: 6px;
+}
+
+.receipt-brand h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: -0.4px;
+}
+
+.receipt-brand p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 13px;
+}
+
+.receipt-badge {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.receipt-body {
+    padding: 24px;
+    display: grid;
+    gap: 18px;
+}
+
+.receipt-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.meta-box {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.meta-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.meta-value {
+    margin-top: 6px;
+    font-weight: 800;
+    color: #111827;
+    font-size: 18px;
+}
+
+.receipt-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+}
+
+.kpi {
+    border-radius: 12px;
+    padding: 16px;
+    color: white;
+}
+
+.kpi h3 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    opacity: 0.95;
+}
+
+.kpi p {
+    margin: 8px 0 0 0;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.kpi.original { background: linear-gradient(135deg, #334155 0%, #1f2937 100%); }
+.kpi.paid { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.kpi.pending { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+
+.receipt-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.receipt-section h2 {
+    margin: 0;
+    padding: 14px 16px;
+    font-size: 15px;
+    color: #111827;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.receipt-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.receipt-table th,
+.receipt-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+    font-size: 14px;
+}
+
+.receipt-table th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #475569;
+    background: #ffffff;
+}
+
+.receipt-table td strong {
+    color: #111827;
+}
+
+.text-right { text-align: right !important; }
+.text-center { text-align: center !important; }
+
+.actions-bar {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.status-chip {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.status-chip.pendiente { background: #fef3c7; color: #92400e; }
+.status-chip.parcial { background: #dbeafe; color: #1e40af; }
+
+@media print {
+    .sidebar,
+    .actions-bar,
+    .toast-container,
+    #appConfirm {
+        display: none !important;
+    }
+
+    .main-content,
+    .container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .receipt-card {
+        box-shadow: none;
+        border-color: #d1d5db;
+    }
+}
+</style>
+
+<div class="receipt-wrapper">
+    <div class="actions-bar">
+        <button type="button" class="button secondary" onclick="window.location.href='{{ url_for('debts') }}'">← Volver a deudas</button>
+        <button type="button" class="button success" onclick="window.location.href='{{ url_for('customer_payment_register', customer=customer_key) }}'">💳 Registrar pago</button>
+        <button type="button" class="button" onclick="window.print()">🖨️ Imprimir / PDF</button>
+        <button type="button" class="button" onclick="downloadAsImage()">📸 Descargar Foto</button>
+    </div>
+
+    <article class="receipt-card">
+        <header class="receipt-header">
+            <div class="receipt-brand">
+                <h1>🧾 Boleta de deuda</h1>
+                <p>Estado de cuenta consolidado del cliente</p>
+            </div>
+            <div class="receipt-badge">
+                N° {{ receipt_number }}
+            </div>
+        </header>
+
+        <div class="receipt-body">
+            <div class="receipt-meta">
+                <div class="meta-box">
+                    <div class="meta-label">Cliente</div>
+                    <div class="meta-value">{{ customer_name }}</div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-label">Generado</div>
+                    <div class="meta-value">{{ generated_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-label">Ventas con deuda</div>
+                    <div class="meta-value">{{ pending_sales|length }}</div>
+                </div>
+            </div>
+
+            <div class="receipt-kpis">
+                <div class="kpi original">
+                    <h3>Monto original</h3>
+                    <p>{{ total_original_cents | money }}</p>
+                </div>
+                <div class="kpi paid">
+                    <h3>Monto adelantado</h3>
+                    <p>{{ total_paid_cents | money }}</p>
+                </div>
+                <div class="kpi pending">
+                    <h3>Saldo pendiente</h3>
+                    <p>{{ total_pending_cents | money }}</p>
+                </div>
+            </div>
+
+            <section class="receipt-section">
+                <h2>📦 Productos acumulados</h2>
+                <table class="receipt-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items_list %}
+                        <tr>
+                            <td><strong>{{ item.product_name }}</strong></td>
+                            <td class="text-center">{{ item.qty }}</td>
+                            <td class="text-right">{{ item.line_total_cents | money }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="receipt-section">
+                <h2>🧾 Ventas pendientes</h2>
+                <table class="receipt-table">
+                    <thead>
+                        <tr>
+                            <th>ID Venta</th>
+                            <th>Fecha</th>
+                            <th class="text-right">Total</th>
+                            <th class="text-right">Pagado</th>
+                            <th class="text-right">Pendiente</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sale in pending_sales %}
+                        <tr>
+                            <td>#{{ sale.id }}</td>
+                            <td>{{ sale.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td class="text-right">{{ sale.total_cents | money }}</td>
+                            <td class="text-right">{{ sale.paid_cents | money }}</td>
+                            <td class="text-right"><strong>{{ sale.pending_cents | money }}</strong></td>
+                            <td class="text-center">
+                                <span class="status-chip {{ sale.payment_status }}">{{ sale.payment_status }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="receipt-section">
+                <h2>💸 Historial de pagos registrados</h2>
+                <table class="receipt-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>ID Venta</th>
+                            <th>Método</th>
+                            <th>Detalle</th>
+                            <th class="text-right">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if payments_history %}
+                            {% for payment in payments_history %}
+                            <tr>
+                                <td>{{ payment.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>#{{ payment.sale_id }}</td>
+                                <td>{{ payment.payment_method }}</td>
+                                <td>{{ payment.notes or '-' }}</td>
+                                <td class="text-right"><strong>{{ payment.amount_cents | money }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: #6b7280;">No hay pagos previos registrados para este cliente.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </section>
+        </div>
+    </article>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+function downloadAsImage() {
+    const element = document.querySelector('.receipt-card');
+    const button = event.target;
+    const originalText = button.textContent;
+    
+    button.disabled = true;
+    button.textContent = '⏳ Generando...';
+    
+    html2canvas(element, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true,
+    }).then(canvas => {
+        const link = document.createElement('a');
+        const now = new Date();
+        const filename = 'boleta-' + now.toISOString().slice(0, 10) + '-{{ customer_name }}.png';
+        link.href = canvas.toDataURL('image/png');
+        link.download = filename.replace(/[^a-zA-Z0-9\-]/g, '_');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        button.disabled = false;
+        button.textContent = originalText;
+    }).catch(err => {
+        console.error('Error al generar imagen:', err);
+        alert('Error al generar la imagen');
+        button.disabled = false;
+        button.textContent = originalText;
+    });
+}
+</script>
+{% endblock %}

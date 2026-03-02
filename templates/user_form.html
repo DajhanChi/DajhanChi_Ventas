@@ -5,10 +5,17 @@
 </div>
 
 <div style="max-width: 600px;">
+    {% if is_protected %}
+    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin-bottom: 20px; color: #92400e;">
+        <p style="margin: 0 0 8px 0; font-weight: 700;">⚠️ Usuario Protegido</p>
+        <p style="margin: 0; font-size: 13px;">Este usuario está protegido. Debes proporcionar la clave de acceso para realizar cambios.</p>
+    </div>
+    {% endif %}
+
     <form method="post" class="card">
         <label for="username">👤 Nombre de Usuario <span style="color: #ef4444;">*</span></label>
-        <input id="username" name="username" type="text" placeholder="Ej: juan.perez" required value="{{ user.username if user else '' }}">
-        <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">Mínimo 3 caracteres, sin espacios</p>
+        <input id="username" name="username" type="text" placeholder="Ej: juan.perez" required value="{{ user.username if user else '' }}" {% if is_protected %}readonly{% endif %} style="{% if is_protected %}background-color: #f3f4f6; cursor: not-allowed;{% endif %}">
+        <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">{% if is_protected %}Este campo no puede ser modificado{% else %}Mínimo 3 caracteres, sin espacios{% endif %}</p>
 
         {% if not user %}
         <label for="password">🔐 Contraseña <span style="color: #ef4444;">*</span></label>
@@ -31,10 +38,16 @@
         <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">Desactiva el usuario para bloquear su acceso</p>
         {% endif %}
 
+        {% if is_protected %}
+        <label for="secret_key" style="margin-top: 18px;">🔑 Clave de Acceso <span style="color: #ef4444;">*</span></label>
+        <input id="secret_key" name="secret_key" type="password" placeholder="Ingresa la clave de acceso" required style="border-color: #f59e0b;">
+        <p style="font-size: 12px; color: #6b7280; margin: 4px 0 0 0;">Debes proporcionar la clave para modificar este usuario</p>
+        {% endif %}
+
         <div class="actions">
             <button type="submit" style="width: 100%;">✅ {{ "Actualizar Usuario" if user else "Crear Usuario" }}</button>
         </div>
-        <a class="button secondary" style="width: 100%; text-align: center;" href="{{ url_for('users') }}">← Volver</a>
+        <button type="button" class="button secondary" style="width: 100%; text-align: center;" onclick="window.location.href='{{ url_for('users') }}'">← Volver</button>
     </form>
 </div>
 {% endblock %}

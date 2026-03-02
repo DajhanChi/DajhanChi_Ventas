@@ -1,7 +1,13 @@
 import os
+import sqlite3
+import threading
+import time
+import json
 from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
+
+from dotenv import load_dotenv
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
@@ -9,13 +15,20 @@ from flask_migrate import Migrate
 from flask_compress import Compress
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Cargar variables de entorno desde archivo .env
+load_dotenv()
+
 
 app = Flask(__name__)
 Compress(app)
-app.config["SECRET_KEY"] = "change-me-in-production"
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-in-production")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["COMPRESS_LEVEL"] = 6
 app.config["COMPRESS_MIN_SIZE"] = 500
+
+# Configuración de protección de usuario (usar variables de entorno en producción)
+PROTECTED_USERNAME = os.getenv("PROTECTED_USERNAME", "dajhanchi")
+PROTECTED_USER_SECRET = os.getenv("PROTECTED_USER_SECRET", "default-insecure-key-change-in-production")
 
 # Solo configurar la base de datos si no se ha configurado externamente
 if not app.config.get("SQLALCHEMY_DATABASE_URI"):
@@ -26,6 +39,10 @@ if not app.config.get("SQLALCHEMY_DATABASE_URI"):
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 _db_initialized = False
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKUP_DIR = os.path.join(BASE_DIR, "backup")
+BACKUP_RETENTION = 7
+BACKUP_TIME = "00:00"
 
 
 class User(db.Model):
@@ -41,6 +58,7 @@ class User(db.Model):
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     name = db.Column(db.String(160), nullable=False, index=True)
     sku = db.Column(db.String(64), nullable=True, index=True)
     package_cost_cents = db.Column(db.Integer, nullable=False, default=0)
@@ -48,10 +66,13 @@ class Product(db.Model):
     cost_cents = db.Column(db.Integer, nullable=False, default=0)
     price_cents = db.Column(db.Integer, nullable=False, default=0)
     stock = db.Column(db.Integer, nullable=False, default=0, index=True)
+    
+    user = db.relationship("User", backref=db.backref("products", lazy=True))
 
 
 class Sale(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
     customer_name = db.Column(db.String(160))
     payment_method = db.Column(db.String(20), nullable=False, default="efectivo")  # efectivo, yape, fiado
@@ -59,9 +80,11 @@ class Sale(db.Model):
     paid_cents = db.Column(db.Integer, nullable=False, default=0)
     payment_status = db.Column(db.String(20), nullable=False, default="pagado")  # pagado, pendiente, parcial
     
+    user = db.relationship("User", backref=db.backref("sales", lazy=True))
+    
     @property
     def pending_cents(self):
-        return self.total_cents - self.paid_cents
+        return max(0, self.total_cents - self.paid_cents)
 
 
 class SaleItem(db.Model):
@@ -120,8 +143,111 @@ def parse_price(value):
         amount = Decimal(clean)
     except InvalidOperation:
         return None
+    if amount < 0:
+        return None
     cents = int((amount * 100).quantize(Decimal("1")))
     return cents
+
+
+def serialize_products(products):
+    return [
+        {
+            "id": product.id,
+            "name": product.name,
+            "stock": product.stock,
+        }
+        for product in products
+    ]
+
+
+def get_customer_filter_from_key(customer_key):
+    if customer_key == "__SIN_NOMBRE__":
+        return "Sin nombre", (Sale.customer_name.is_(None)) | (Sale.customer_name == "")
+    return customer_key, Sale.customer_name == customer_key
+
+
+def _get_sqlite_db_path():
+    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if uri.startswith("sqlite:///"):
+        return uri.replace("sqlite:///", "", 1)
+    return None
+
+
+def _prune_backups():
+    if not os.path.isdir(BACKUP_DIR):
+        return
+    backups = [
+        os.path.join(BACKUP_DIR, name)
+        for name in os.listdir(BACKUP_DIR)
+        if name.startswith("app-") and name.endswith(".db")
+    ]
+    backups.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    for old in backups[BACKUP_RETENTION:]:
+        try:
+            os.remove(old)
+        except OSError:
+            pass
+
+
+def create_backup():
+    db_path = _get_sqlite_db_path()
+    if not db_path or not os.path.exists(db_path):
+        return
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = os.path.join(BACKUP_DIR, f"app-{timestamp}.db")
+
+    try:
+        with sqlite3.connect(db_path) as src, sqlite3.connect(backup_path) as dst:
+            src.backup(dst)
+    except sqlite3.Error:
+        return
+
+    _prune_backups()
+
+
+def _next_backup_delay():
+    try:
+        hour_str, minute_str = BACKUP_TIME.split(":", 1)
+        hour = int(hour_str)
+        minute = int(minute_str)
+    except (ValueError, AttributeError):
+        hour, minute = 0, 0
+
+    now = datetime.now()
+    next_run = datetime.combine(now.date(), datetime.min.time()).replace(hour=hour, minute=minute)
+    if next_run <= now:
+        next_run += timedelta(days=1)
+    return (next_run - now).total_seconds()
+
+
+def start_backup_scheduler():
+    def worker():
+        while True:
+            delay = _next_backup_delay()
+            time.sleep(delay)
+            create_backup()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+
+
+def ensure_recent_backup():
+    if not os.path.isdir(BACKUP_DIR):
+        create_backup()
+        return
+    backups = [
+        os.path.join(BACKUP_DIR, name)
+        for name in os.listdir(BACKUP_DIR)
+        if name.startswith("app-") and name.endswith(".db")
+    ]
+    if not backups:
+        create_backup()
+        return
+    latest = max(backups, key=lambda p: os.path.getmtime(p))
+    age_seconds = time.time() - os.path.getmtime(latest)
+    if age_seconds >= 24 * 60 * 60:
+        create_backup()
 
 
 def login_required(view):
@@ -158,15 +284,17 @@ def logout():
 @app.route("/")
 @login_required
 def dashboard():
-    recent_sales = Sale.query.options(db.joinedload(Sale.items)).order_by(Sale.created_at.desc()).limit(5).all()
-    low_stock = Product.query.filter(Product.stock <= 5).order_by(Product.stock.asc()).limit(10).all()
+    user_id = session.get("user_id")
+    recent_sales = Sale.query.filter_by(user_id=user_id).options(db.joinedload(Sale.items)).order_by(Sale.created_at.desc()).limit(5).all()
+    low_stock = Product.query.filter(Product.user_id == user_id, Product.stock <= 5).order_by(Product.stock.asc()).limit(10).all()
     return render_template("dashboard.html", recent_sales=recent_sales, low_stock=low_stock)
 
 
 @app.route("/products")
 @login_required
 def products():
-    items = Product.query.order_by(Product.name.asc()).limit(200).all()
+    user_id = session.get("user_id")
+    items = Product.query.filter_by(user_id=user_id).order_by(Product.name.asc()).limit(200).all()
     return render_template("products.html", products=items)
 
 
@@ -174,6 +302,7 @@ def products():
 @login_required
 def product_new():
     if request.method == "POST":
+        user_id = session.get("user_id")
         name = request.form.get("name", "").strip()
         sku = request.form.get("sku", "").strip() or None
         package_cost_cents = parse_price(request.form.get("package_cost"))
@@ -184,7 +313,7 @@ def product_new():
         if not name:
             flash("Nombre es requerido", "error")
             return render_template("product_form.html", product=None)
-        if sku and Product.query.filter_by(sku=sku).first():
+        if sku and Product.query.filter_by(user_id=user_id, sku=sku).first():
             flash(f"SKU '{sku}' ya existe. Usa uno diferente.", "error")
             return render_template("product_form.html", product=None)
         if package_cost_cents is None:
@@ -212,7 +341,7 @@ def product_new():
             flash("Stock inválido", "error")
             return render_template("product_form.html", product=None)
 
-        product = Product(name=name, sku=sku, package_cost_cents=package_cost_cents, package_quantity=package_qty_val, cost_cents=cost_cents, price_cents=price_cents, stock=stock_val)
+        product = Product(user_id=user_id, name=name, sku=sku, package_cost_cents=package_cost_cents, package_quantity=package_qty_val, cost_cents=cost_cents, price_cents=price_cents, stock=stock_val)
         db.session.add(product)
         db.session.commit()
         flash("Producto creado", "success")
@@ -224,7 +353,8 @@ def product_new():
 @app.route("/products/<int:product_id>/edit", methods=["GET", "POST"])
 @login_required
 def product_edit(product_id):
-    product = Product.query.get_or_404(product_id)
+    user_id = session.get("user_id")
+    product = Product.query.filter_by(id=product_id, user_id=user_id).first_or_404()
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         sku = request.form.get("sku", "").strip() or None
@@ -236,7 +366,7 @@ def product_edit(product_id):
         if not name:
             flash("Nombre es requerido", "error")
             return render_template("product_form.html", product=product)
-        if sku and Product.query.filter(Product.sku == sku, Product.id != product_id).first():
+        if sku and Product.query.filter(Product.sku == sku, Product.id != product_id, Product.user_id == user_id).first():
             flash(f"SKU '{sku}' ya existe en otro producto. Usa uno diferente.", "error")
             return render_template("product_form.html", product=product)
         if package_cost_cents is None:
@@ -281,7 +411,8 @@ def product_edit(product_id):
 @app.route("/products/<int:product_id>/delete", methods=["POST"])
 @login_required
 def product_delete(product_id):
-    product = Product.query.get_or_404(product_id)
+    user_id = session.get("user_id")
+    product = Product.query.filter_by(id=product_id, user_id=user_id).first_or_404()
     has_sales = SaleItem.query.filter_by(product_id=product.id).first()
     if has_sales:
         flash("No se puede eliminar: el producto tiene ventas registradas", "error")
@@ -301,14 +432,59 @@ def product_delete(product_id):
 @app.route("/sales")
 @login_required
 def sales():
-    items = Sale.query.options(db.joinedload(Sale.items)).order_by(Sale.created_at.desc()).limit(100).all()
-    return render_template("sales.html", sales=items)
+    user_id = session.get("user_id")
+    search_q = request.args.get("q", "").strip()
+
+    query = Sale.query.filter_by(user_id=user_id).options(
+        db.joinedload(Sale.items).joinedload(SaleItem.product)
+    )
+    if search_q:
+        search_lower = search_q.lower()
+        anon_terms = {"anonimo", "sin nombre"}
+        if search_lower in anon_terms:
+            query = query.filter((Sale.customer_name.is_(None)) | (Sale.customer_name == ""))
+        else:
+            query = query.filter(Sale.customer_name.ilike(f"%{search_q}%"))
+
+    items = (
+        query.order_by(Sale.customer_name.asc(), Sale.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    sales_serializable = []
+    for sale in items:
+        sale_items = []
+        for item in sale.items:
+            product_name = item.product.name if item.product else "Producto eliminado"
+            sale_items.append({
+                "product_name": product_name,
+                "qty": item.qty,
+                "unit_price_cents": item.unit_price_cents,
+                "line_total_cents": item.line_total_cents,
+            })
+        sales_serializable.append({
+            "id": sale.id,
+            "created_at": sale.created_at.strftime("%d/%m/%Y %H:%M"),
+            "customer_name": sale.customer_name or "Anónimo",
+            "customer_key": sale.customer_name or "__SIN_NOMBRE__",
+            "payment_method": sale.payment_method or "efectivo",
+            "payment_status": sale.payment_status or "pagado",
+            "total_cents": sale.total_cents,
+            "paid_cents": sale.paid_cents,
+            "pending_cents": sale.pending_cents,
+            "items": sale_items,
+        })
+
+    sales_json = json.dumps(sales_serializable)
+    return render_template("sales.html", sales=items, search_q=search_q, sales_json=sales_json)
 
 
 @app.route("/sales/new", methods=["GET", "POST"])
 @login_required
 def sale_new():
-    products = Product.query.order_by(Product.name.asc()).all()
+    user_id = session.get("user_id")
+    products = Product.query.filter_by(user_id=user_id).order_by(Product.name.asc()).all()
+    products_data = serialize_products(products)
     line_items = []
 
     if request.method == "POST":
@@ -319,7 +495,7 @@ def sale_new():
 
         # Obtener todos los productos en una sola query
         valid_ids = [int(pid) for pid in product_ids if pid]
-        products_map = {p.id: p for p in Product.query.filter(Product.id.in_(valid_ids)).all()} if valid_ids else {}
+        products_map = {p.id: p for p in Product.query.filter(Product.id.in_(valid_ids), Product.user_id == user_id).all()} if valid_ids else {}
 
         for product_id, qty_str in zip(product_ids, qty_values):
             if not product_id or not qty_str:
@@ -337,14 +513,14 @@ def sale_new():
         if not line_items:
             flash("Agrega al menos un producto", "error")
             return render_template(
-                "sale_form.html", products=products, line_items=line_items, customer_name=customer_name, payment_method=payment_method
+                "sale_form.html", products=products_data, line_items=line_items, customer_name=customer_name, payment_method=payment_method
             )
 
         for item in line_items:
             if item["product"].stock < item["qty"]:
                 flash(f"Stock insuficiente para {item['product'].name}", "error")
                 return render_template(
-                    "sale_form.html", products=products, line_items=line_items, customer_name=customer_name, payment_method=payment_method
+                    "sale_form.html", products=products_data, line_items=line_items, customer_name=customer_name, payment_method=payment_method
                 )
 
         # Determinar estado de pago según el método
@@ -356,6 +532,7 @@ def sale_new():
             paid_cents = 0  # Se calculará después
         
         sale = Sale(
+            user_id=user_id,
             customer_name=customer_name, 
             payment_method=payment_method,
             payment_status=payment_status,
@@ -387,18 +564,23 @@ def sale_new():
         flash("Venta registrada", "success")
         return redirect(url_for("sales"))
 
-    return render_template("sale_form.html", products=products, line_items=line_items, customer_name="", payment_method="efectivo")
+    return render_template("sale_form.html", products=products_data, line_items=line_items, customer_name="", payment_method="efectivo")
 
 
 @app.route("/sales/<int:sale_id>/delete", methods=["POST"])
 @login_required
 def sale_delete(sale_id):
-    sale = Sale.query.get_or_404(sale_id)
+    user_id = session.get("user_id")
+    sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first_or_404()
     
     try:
         # Devolver stock a los productos y eliminar items explícitamente
         for item in sale.items:
-            item.product.stock += item.qty
+            product = None
+            if item.product_id:
+                product = Product.query.filter_by(id=item.product_id, user_id=user_id).first()
+            if product:
+                product.stock += item.qty
             db.session.delete(item)
         
         # Eliminar todos los pagos asociados
@@ -419,8 +601,10 @@ def sale_delete(sale_id):
 @app.route("/sales/<int:sale_id>/edit", methods=["GET", "POST"])
 @login_required
 def sale_edit(sale_id):
-    sale = Sale.query.get_or_404(sale_id)
-    products = Product.query.order_by(Product.name.asc()).all()
+    user_id = session.get("user_id")
+    sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first_or_404()
+    products = Product.query.filter_by(user_id=user_id).order_by(Product.name.asc()).all()
+    products_data = serialize_products(products)
     
     if request.method == "POST":
         customer_name = request.form.get("customer_name", "").strip()
@@ -430,7 +614,7 @@ def sale_edit(sale_id):
 
         # Validar productos y cantidades
         valid_ids = [int(pid) for pid in product_ids if pid]
-        products_map = {p.id: p for p in Product.query.filter(Product.id.in_(valid_ids)).all()} if valid_ids else {}
+        products_map = {p.id: p for p in Product.query.filter(Product.id.in_(valid_ids), Product.user_id == user_id).all()} if valid_ids else {}
 
         line_items = []
         for product_id, qty_str in zip(product_ids, qty_values):
@@ -451,9 +635,26 @@ def sale_edit(sale_id):
             return render_template(
                 "sale_form.html", 
                 sale=sale,
-                products=products, 
+                products=products_data, 
                 line_items=line_items, 
                 customer_name=customer_name, 
+                payment_method=payment_method
+            )
+
+        new_total_cents = sum(item["product"].price_cents * item["qty"] for item in line_items)
+        payments_total = (
+            db.session.query(db.func.coalesce(db.func.sum(Payment.amount_cents), 0))
+            .filter(Payment.sale_id == sale.id)
+            .scalar()
+        )
+        if payment_method == "fiado" and payments_total > new_total_cents:
+            flash("No puedes reducir el total por debajo de lo ya pagado", "error")
+            return render_template(
+                "sale_form.html",
+                sale=sale,
+                products=products_data,
+                line_items=line_items,
+                customer_name=customer_name,
                 payment_method=payment_method
             )
 
@@ -471,7 +672,7 @@ def sale_edit(sale_id):
                 return render_template(
                     "sale_form.html",
                     sale=sale,
-                    products=products,
+                    products=products_data,
                     line_items=line_items,
                     customer_name=customer_name,
                     payment_method=payment_method
@@ -517,10 +718,7 @@ def sale_edit(sale_id):
             sale.paid_cents = total_cents
             sale.payment_status = "pagado"
         else:
-            # Si es fiado, mantener el monto ya pagado si es menor o igual al nuevo total
-            if sale.paid_cents > total_cents:
-                sale.paid_cents = total_cents
-            # Actualizar estado de pago
+            sale.paid_cents = payments_total
             if sale.paid_cents == 0:
                 sale.payment_status = "pendiente"
             elif sale.paid_cents >= total_cents:
@@ -537,7 +735,7 @@ def sale_edit(sale_id):
     return render_template(
         "sale_form.html",
         sale=sale,
-        products=products,
+        products=products_data,
         line_items=line_items,
         customer_name=sale.customer_name or "",
         payment_method=sale.payment_method
@@ -547,36 +745,326 @@ def sale_edit(sale_id):
 @app.route("/debts")
 @login_required
 def debts():
-    # Obtener todas las ventas con deuda pendiente
-    pending_sales = Sale.query.filter(
-        Sale.payment_status.in_(["pendiente", "parcial"])
-    ).order_by(Sale.created_at.desc()).all()
+    user_id = session.get("user_id")
+    # Obtener todas las ventas con deuda pendiente del usuario actual
+    pending_sales = (
+        Sale.query.filter(
+            Sale.user_id == user_id,
+            Sale.payment_method == "fiado",
+            Sale.payment_status.in_(["pendiente", "parcial"])
+        )
+        .options(
+            db.joinedload(Sale.items).joinedload(SaleItem.product),
+            db.joinedload(Sale.payments)
+        )
+        .order_by(Sale.created_at.desc())
+        .all()
+    )
     
-    # Agrupar las ventas por cliente
+    # Agrupar las ventas por cliente (deuda pendiente)
     debts_by_customer = {}
     for sale in pending_sales:
         customer = sale.customer_name or "Sin nombre"
         if customer not in debts_by_customer:
+            customer_key = customer if customer != "Sin nombre" else "__SIN_NOMBRE__"
             debts_by_customer[customer] = {
                 'customer_name': customer,
+                'customer_key': customer_key,
+                'total_original_cents': 0,
+                'total_paid_cents': 0,
                 'total_debt_cents': 0,
-                'sales': []
+                'sales': [],
+                'items_map': {}
             }
         debts_by_customer[customer]['total_debt_cents'] += sale.pending_cents
         debts_by_customer[customer]['sales'].append(sale)
+
+    for sale in pending_sales:
+        customer = sale.customer_name or "Sin nombre"
+        customer_data = debts_by_customer.get(customer)
+        if not customer_data:
+            continue
+        customer_data['total_original_cents'] += sale.total_cents
+        customer_data['total_paid_cents'] += sale.paid_cents
+
+        items_map = customer_data['items_map']
+        for item in sale.items:
+            product_name = item.product.name if item.product else "Producto eliminado"
+            key = item.product_id
+            if key not in items_map:
+                items_map[key] = {
+                    'product_name': product_name,
+                    'qty': 0,
+                    'line_total_cents': 0
+                }
+            items_map[key]['qty'] += item.qty
+            items_map[key]['line_total_cents'] += item.line_total_cents
     
-    # Convertir a lista y ordenar por deuda (mayor a menor)
-    grouped_debts = sorted(debts_by_customer.values(), key=lambda x: x['total_debt_cents'], reverse=True)
+    # Convertir a lista y ordenar por nombre (A-Z)
+    for customer_data in debts_by_customer.values():
+        items_list = sorted(
+            customer_data['items_map'].values(),
+            key=lambda x: x['product_name'].lower()
+        )
+        customer_data['items_list'] = items_list
+        customer_data.pop('items_map', None)
+
+    grouped_debts = sorted(debts_by_customer.values(), key=lambda x: x['customer_name'].lower())
     
     total_debt_cents = sum(sale.pending_cents for sale in pending_sales)
     
-    return render_template("debts.html", grouped_debts=grouped_debts, total_debt_cents=total_debt_cents)
+    # Crear JSON serializable para el resumen
+    debts_summary_data = {
+        "total_debt_cents": total_debt_cents,
+        "customers": [
+            {
+                "customer_name": c["customer_name"],
+                "total_original_cents": c["total_original_cents"],
+                "total_paid_cents": c["total_paid_cents"],
+                "total_debt_cents": c["total_debt_cents"],
+                "items_list": c["items_list"]
+            }
+            for c in grouped_debts
+        ]
+    }
+    debts_summary_json = json.dumps(debts_summary_data)
+    
+    # Crear versión serializable de grouped_debts
+    grouped_debts_serializable = [
+        {
+            "customer_name": c["customer_name"],
+            "customer_key": c["customer_key"],
+            "total_original_cents": c["total_original_cents"],
+            "total_paid_cents": c["total_paid_cents"],
+            "total_debt_cents": c["total_debt_cents"],
+            "items_list": c["items_list"],
+            "latest_sale_id": c["sales"][0].id if c.get("sales") else None,
+            "sales_summary": [
+                {
+                    "id": sale.id,
+                    "created_at": sale.created_at.strftime("%d/%m/%Y %H:%M"),
+                    "total_cents": sale.total_cents,
+                    "paid_cents": sale.paid_cents,
+                    "pending_cents": sale.pending_cents,
+                    "payment_status": sale.payment_status,
+                }
+                for sale in sorted(c.get("sales", []), key=lambda s: s.created_at, reverse=True)
+            ]
+        }
+        for c in grouped_debts
+    ]
+    grouped_debts_json = json.dumps(grouped_debts_serializable)
+    
+    return render_template("debts.html", 
+                         grouped_debts=grouped_debts, 
+                         total_debt_cents=total_debt_cents, 
+                         debts_summary_json=debts_summary_json, 
+                         grouped_debts_json=grouped_debts_json)
+
+
+@app.route("/debts/customer/payment", methods=["GET", "POST"])
+@login_required
+def customer_payment_register():
+    user_id = session.get("user_id")
+    customer_key = request.args.get("customer", "").strip()
+    if not customer_key:
+        flash("Cliente inválido", "error")
+        return redirect(url_for("debts"))
+
+    customer_name, customer_filter = get_customer_filter_from_key(customer_key)
+
+    pending_sales = (
+        Sale.query.filter(
+            Sale.user_id == user_id,
+            customer_filter,
+            Sale.payment_method == "fiado",
+            Sale.payment_status.in_(["pendiente", "parcial"])
+        )
+        .options(
+            db.joinedload(Sale.items).joinedload(SaleItem.product)
+        )
+        .order_by(Sale.created_at.asc())
+        .all()
+    )
+
+    if not pending_sales:
+        flash("No hay deudas pendientes para este cliente", "error")
+        return redirect(url_for("debts"))
+
+    items_map = {}
+    total_pending_cents = 0
+    for sale in pending_sales:
+        total_pending_cents += sale.pending_cents
+    for sale in pending_sales:
+        for item in sale.items:
+            product_name = item.product.name if item.product else "Producto eliminado"
+            key = item.product_id
+            if key not in items_map:
+                items_map[key] = {
+                    'product_name': product_name,
+                    'qty': 0,
+                    'line_total_cents': 0
+                }
+            items_map[key]['qty'] += item.qty
+            items_map[key]['line_total_cents'] += item.line_total_cents
+
+    items_list = sorted(items_map.values(), key=lambda x: x['product_name'].lower())
+
+    if request.method == "POST":
+        amount_str = request.form.get("amount", "").strip()
+        payment_method = request.form.get("payment_method", "efectivo").strip()
+        notes = request.form.get("notes", "").strip()
+
+        amount_cents = parse_price(amount_str)
+        if amount_cents is None or amount_cents <= 0:
+            flash("Ingresa un monto válido", "error")
+            return render_template(
+                "customer_payment_form.html",
+                customer_name=customer_name,
+                customer_key=customer_key,
+                items=items_list,
+                total_pending_cents=total_pending_cents,
+                pending_sales=pending_sales,
+            )
+
+        if amount_cents > total_pending_cents:
+            flash(f"El monto excede la deuda pendiente de {total_pending_cents/100:.2f}", "error")
+            return render_template(
+                "customer_payment_form.html",
+                customer_name=customer_name,
+                customer_key=customer_key,
+                items=items_list,
+                total_pending_cents=total_pending_cents,
+                pending_sales=pending_sales,
+            )
+
+        remaining = amount_cents
+        for sale in pending_sales:
+            if remaining <= 0:
+                break
+            pending_cents = sale.pending_cents
+            if pending_cents <= 0:
+                continue
+            apply_cents = pending_cents if remaining >= pending_cents else remaining
+
+            payment = Payment(
+                sale=sale,
+                amount_cents=apply_cents,
+                payment_method=payment_method,
+                notes=notes
+            )
+            db.session.add(payment)
+
+            sale.paid_cents += apply_cents
+            if sale.paid_cents >= sale.total_cents:
+                sale.payment_status = "pagado"
+            else:
+                sale.payment_status = "parcial"
+
+            remaining -= apply_cents
+
+        db.session.commit()
+        flash(f"Pago de {amount_cents/100:.2f} registrado exitosamente", "success")
+        return redirect(url_for("debts"))
+
+    return render_template(
+        "customer_payment_form.html",
+        customer_name=customer_name,
+        customer_key=customer_key,
+        items=items_list,
+        total_pending_cents=total_pending_cents,
+        pending_sales=pending_sales,
+    )
+
+
+@app.route("/debts/customer/receipt")
+@login_required
+def debt_customer_receipt():
+    user_id = session.get("user_id")
+    customer_key = request.args.get("customer", "").strip()
+    if not customer_key:
+        flash("Cliente inválido", "error")
+        return redirect(url_for("debts"))
+
+    customer_name, customer_filter = get_customer_filter_from_key(customer_key)
+
+    pending_sales = (
+        Sale.query.filter(
+            Sale.user_id == user_id,
+            customer_filter,
+            Sale.payment_method == "fiado",
+            Sale.payment_status.in_(["pendiente", "parcial"])
+        )
+        .options(
+            db.joinedload(Sale.items).joinedload(SaleItem.product),
+            db.joinedload(Sale.payments)
+        )
+        .order_by(Sale.created_at.asc())
+        .all()
+    )
+
+    if not pending_sales:
+        flash("No hay deudas pendientes para este cliente", "error")
+        return redirect(url_for("debts"))
+
+    items_map = {}
+    payments_history = []
+    total_original_cents = 0
+    total_paid_cents = 0
+    total_pending_cents = 0
+
+    for sale in pending_sales:
+        total_original_cents += sale.total_cents
+        total_paid_cents += sale.paid_cents
+        total_pending_cents += sale.pending_cents
+
+        for item in sale.items:
+            product_name = item.product.name if item.product else "Producto eliminado"
+            key = item.product_id
+            if key not in items_map:
+                items_map[key] = {
+                    "product_name": product_name,
+                    "qty": 0,
+                    "line_total_cents": 0
+                }
+            items_map[key]["qty"] += item.qty
+            items_map[key]["line_total_cents"] += item.line_total_cents
+
+        for payment in sale.payments:
+            payments_history.append({
+                "sale_id": sale.id,
+                "amount_cents": payment.amount_cents,
+                "payment_method": payment.payment_method,
+                "notes": payment.notes or "",
+                "created_at": payment.created_at,
+            })
+
+    items_list = sorted(items_map.values(), key=lambda x: x["product_name"].lower())
+    payments_history.sort(key=lambda x: x["created_at"], reverse=True)
+
+    generated_at = datetime.now()
+    receipt_number = f"BOL-{generated_at.strftime('%Y%m%d%H%M')}-{pending_sales[-1].id:05d}"
+
+    return render_template(
+        "debt_receipt.html",
+        customer_name=customer_name,
+        customer_key=customer_key,
+        generated_at=generated_at,
+        receipt_number=receipt_number,
+        total_original_cents=total_original_cents,
+        total_paid_cents=total_paid_cents,
+        total_pending_cents=total_pending_cents,
+        items_list=items_list,
+        pending_sales=sorted(pending_sales, key=lambda s: s.created_at, reverse=True),
+        payments_history=payments_history,
+    )
 
 
 @app.route("/debts/<int:sale_id>/payment", methods=["GET", "POST"])
 @login_required
 def payment_register(sale_id):
-    sale = Sale.query.get_or_404(sale_id)
+    user_id = session.get("user_id")
+    sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first_or_404()
     
     if sale.payment_status == "pagado":
         flash("Esta venta ya está completamente pagada", "error")
@@ -626,18 +1114,26 @@ def payment_register(sale_id):
 @app.route("/reports")
 @login_required
 def reports():
+    user_id = session.get("user_id")
     today_start = datetime.combine(date.today(), datetime.min.time())
     today_end = today_start + timedelta(days=1)
 
     # Usar índices para hacer queries más rápidas
     total_sales_today = (
         db.session.query(db.func.coalesce(db.func.sum(Sale.total_cents), 0))
-        .filter(Sale.created_at >= today_start, Sale.created_at < today_end)
+        .filter(Sale.user_id == user_id, Sale.created_at >= today_start, Sale.created_at < today_end)
         .scalar()
     )
     total_transactions_today = (
         db.session.query(db.func.count(Sale.id))
-        .filter(Sale.created_at >= today_start, Sale.created_at < today_end)
+        .filter(Sale.user_id == user_id, Sale.created_at >= today_start, Sale.created_at < today_end)
+        .scalar()
+    )
+
+    # Calcular dinero invertido en bruto (costo total de inventario)
+    total_invested = (
+        db.session.query(db.func.coalesce(db.func.sum(Product.cost_cents * Product.stock), 0))
+        .filter(Product.user_id == user_id)
         .scalar()
     )
 
@@ -645,6 +1141,7 @@ def reports():
     top_products = (
         db.session.query(Product.name, db.func.sum(SaleItem.qty).label("qty"))
         .join(SaleItem, SaleItem.product_id == Product.id)
+        .filter(Product.user_id == user_id)
         .group_by(Product.id, Product.name)
         .order_by(db.desc("qty"))
         .limit(5)
@@ -656,6 +1153,7 @@ def reports():
         total_sales_today=total_sales_today,
         total_transactions_today=total_transactions_today,
         top_products=top_products,
+        total_invested=total_invested,
     )
 
 
@@ -703,21 +1201,34 @@ def user_new():
 @login_required
 def user_edit(user_id):
     user = User.query.get_or_404(user_id)
+    is_protected_user = user.username == PROTECTED_USERNAME
     
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         role = request.form.get("role", "admin").strip()
         is_active = request.form.get("is_active") == "on"
 
+        # Validar clave secreta si es usuario protegido y hay cambios críticos
+        if is_protected_user:
+            secret_key = request.form.get("secret_key", "").strip()
+            if secret_key != PROTECTED_USER_SECRET:
+                flash("⚠️ Necesitas la clave de acceso para modificar este usuario", "error")
+                return render_template("user_form.html", user=user, is_protected=True)
+
         if not username or len(username) < 3:
             flash("Usuario debe tener al menos 3 caracteres", "error")
-            return render_template("user_form.html", user=user)
+            return render_template("user_form.html", user=user, is_protected=is_protected_user)
 
         # Verificar si el nuevo username ya existe en otro usuario
         existing = User.query.filter_by(username=username).first()
         if existing and existing.id != user.id:
             flash(f"👤 Usuario '{username}' ya existe en otro perfil. Elige otro.", "error")
-            return render_template("user_form.html", user=user)
+            return render_template("user_form.html", user=user, is_protected=is_protected_user)
+
+        # No permitir cambiar username del usuario protegido
+        if is_protected_user and username != PROTECTED_USERNAME:
+            flash("⚠️ No se puede cambiar el nombre de este usuario protegido", "error")
+            return render_template("user_form.html", user=user, is_protected=True)
 
         user.username = username
         user.role = role
@@ -726,13 +1237,20 @@ def user_edit(user_id):
         flash("Usuario actualizado", "success")
         return redirect(url_for("users"))
 
-    return render_template("user_form.html", user=user)
+    return render_template("user_form.html", user=user, is_protected=is_protected_user)
 
 
 @app.route("/users/<int:user_id>/delete", methods=["POST"])
 @login_required
 def user_delete(user_id):
     user = User.query.get_or_404(user_id)
+    
+    # Verificar si es el usuario protegido
+    if user.username == PROTECTED_USERNAME:
+        secret_key = request.form.get("secret_key", "").strip()
+        if secret_key != PROTECTED_USER_SECRET:
+            flash("⚠️ No puedes eliminar este usuario sin la clave de acceso correcta", "error")
+            return redirect(url_for("users"))
     
     if user.id == session.get("user_id"):
         flash("No puedes eliminar tu propia cuenta", "error")
@@ -749,9 +1267,14 @@ def user_delete(user_id):
 @login_required
 def user_change_password(user_id):
     user = User.query.get_or_404(user_id)
+    is_protected_user = user.username == PROTECTED_USERNAME
+    
+    # Determinar si es el mismo usuario
+    current_user_id = session.get("user_id")
+    is_self = (user.id == current_user_id)
     
     # Solo admin o el mismo usuario pueden cambiar contraseña
-    if session.get("user_id") != user_id and session.get("role") != "admin":
+    if not is_self and session.get("role") != "admin":
         flash("No tienes permiso para cambiar esta contraseña", "error")
         return redirect(url_for("users"))
     
@@ -759,28 +1282,40 @@ def user_change_password(user_id):
         old_password = request.form.get("old_password", "")
         new_password = request.form.get("new_password", "").strip()
         confirm_password = request.form.get("confirm_password", "").strip()
+        
+        # Si es usuario protegido, SIEMPRE requerir clave secreta (incluso si es él mismo)
+        if is_protected_user:
+            secret_key = request.form.get("secret_key", "").strip()
+            if secret_key != PROTECTED_USER_SECRET:
+                flash("⚠️ Necesitas la clave de acceso para cambiar la contraseña de este usuario protegido", "error")
+                return render_template("user_password.html", user=user, is_protected=True, is_self=is_self)
 
         # Verificar contraseña antigua solo si el usuario intenta cambiar su propia contraseña
-        if user.id == session.get("user_id"):
+        if is_self:
+            if not old_password:
+                flash("Debes ingresar tu contraseña actual", "error")
+                return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=True)
             if not user.check_password(old_password):
                 flash("Contraseña actual incorrecta", "error")
-                return render_template("user_password.html", user=user)
+                return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=True)
 
         if not new_password or len(new_password) < 6:
             flash("Nueva contraseña debe tener al menos 6 caracteres", "error")
-            return render_template("user_password.html", user=user)
+            return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self)
 
         if new_password != confirm_password:
             flash("Las contraseñas no coinciden", "error")
-            return render_template("user_password.html", user=user)
+            return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self)
 
         user.password_hash = generate_password_hash(new_password)
         db.session.commit()
         flash("Contraseña actualizada", "success")
         return redirect(url_for("users"))
 
-    return render_template("user_password.html", user=user)
+    return render_template("user_password.html", user=user, is_protected=is_protected_user, is_self=is_self)
 
 
 if __name__ == "__main__":
+    ensure_recent_backup()
+    start_backup_scheduler()
     app.run(host='0.0.0.0', debug=True, use_reloader=False)

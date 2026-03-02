@@ -159,7 +159,7 @@
                 {% if sale %}💾 Actualizar Venta{% else %}✅ Registrar Venta{% endif %}
             </button>
         </div>
-        <a class="button secondary" style="width: 100%; text-align: center;" href="{{ url_for('sales') }}">← Volver</a>
+        <button type="button" class="button secondary" style="width: 100%; text-align: center;" onclick="window.location.href='{{ url_for('sales') }}'">← Volver</button>
     </form>
 </div>
 
@@ -279,8 +279,11 @@ function removeLine(button) {
     
     // Solo permitir eliminar si hay más de una línea
     if (lineItems.length > 1) {
-        button.closest(".line-item").remove();
-        updateRemoveButtons();
+        const productName = button.closest(".line-item").querySelector("select")?.options[button.closest(".line-item").querySelector("select").selectedIndex]?.text || "este producto";
+        if (confirm("¿Eliminar " + productName + " de la venta?")) {
+            button.closest(".line-item").remove();
+            updateRemoveButtons();
+        }
     } else {
         alert("⚠️ Debe haber al menos un producto en la venta");
     }

@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
+.debts-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 16px;
+    overflow-x: hidden;
+}
+
 .debt-sale-card {
     background: #fafafa;
     border-left: 4px solid #3b82f6;
@@ -25,189 +32,512 @@
     font-size: 12px;
     padding: 4px 0;
 }
-</style>
-<div class="page-head">
-    <div>
-        <h1>📝 Gestión de Deudas</h1>
-        <p style="color: #6b7280; margin: 4px 0 0 0;">Administra las ventas fiadas y pagos pendientes</p>
-    </div>
-    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 12px 20px; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
-        💰 Deuda Total: {{ total_debt_cents | money }}
-    </div>
-</div>
 
-<div class="card">
-    {% if grouped_debts %}
-    <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="border-bottom: 2px solid #e5e7eb;">
-                    <th style="text-align: left; padding: 12px;">Cliente</th>
-                    <th style="text-align: center; padding: 12px;">N° Ventas</th>
-                    <th style="text-align: right; padding: 12px;">Deuda Total</th>
-                    <th style="text-align: center; padding: 12px;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for customer in grouped_debts %}
-                <tr style="border-bottom: 1px solid #f3f4f6; cursor: pointer; background: white;" data-customer="{{ customer.customer_name }}" class="customer-row">
-                    <td style="padding: 12px; font-weight: 700; font-size: 16px; color: #1f2937;">
-                        👤 {{ customer.customer_name }}
-                    </td>
-                    <td style="text-align: center; padding: 12px;">
-                        <span style="background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">
-                            {{ customer.sales|length }} venta{% if customer.sales|length != 1 %}s{% endif %}
-                        </span>
-                    </td>
-                    <td style="text-align: right; padding: 12px; color: #ef4444; font-weight: 700; font-size: 18px;">
-                        {{ customer.total_debt_cents | money }}
-                    </td>
-                    <td style="text-align: center; padding: 12px;">
-                        <span style="color: #6b7280; font-size: 12px;">▼ Ver detalle</span>
-                    </td>
-                </tr>
-                <tr id="customer_details_{{ loop.index }}" style="display: none; background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
-                    <td colspan="4" style="padding: 16px;">
-                        <div style="background: white; border-radius: 8px; padding: 16px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);">
-                            <h3 style="margin: 0 0 16px 0; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">
-                                📋 Ventas pendientes de {{ customer.customer_name }}
-                            </h3>
-                            
-                            {% for sale in customer.sales %}
-                            <div class="debt-sale-card {% if sale.payment_status == 'pendiente' %}status-pendiente{% else %}status-parcial{% endif %}">
-                                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 12px; margin-bottom: 12px; align-items: center;">
-                                    <div>
-                                        <div style="font-size: 13px; color: #6b7280;">Fecha: {{ sale.created_at.strftime("%d/%m/%Y %H:%M") }}</div>
-                                        {% if sale.payment_status == 'pendiente' %}
-                                            <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">⏳ Pendiente</span>
-                                        {% elif sale.payment_status == 'parcial' %}
-                                            <span style="background: #dbeafe; color: #0c4a6e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">💵 Parcial</span>
-                                        {% endif %}
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <div style="font-size: 11px; color: #6b7280;">Total</div>
-                                        <div style="font-weight: 600;">{{ sale.total_cents | money }}</div>
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <div style="font-size: 11px; color: #6b7280;">Pagado</div>
-                                        <div style="color: #10b981; font-weight: 600;">{{ sale.paid_cents | money }}</div>
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <div style="font-size: 11px; color: #6b7280;">Pendiente</div>
-                                        <div style="color: #ef4444; font-weight: 700; font-size: 15px;">{{ sale.pending_cents | money }}</div>
-                                    </div>
-                                    <div>
-                                        <a href="{{ url_for('payment_register', sale_id=sale.id) }}" class="button" style="display: inline-block; padding: 6px 12px; font-size: 12px; white-space: nowrap;">💳 Pagar</a>
-                                    </div>
-                                </div>
-                                
-                                <!-- Toggle de detalles por venta -->
-                                <div style="border-top: 1px solid #e5e7eb; padding-top: 8px;">
-                                    <button type="button" class="toggle-sale-details" data-sale-id="{{ sale.id }}">
-                                        <span id="toggle_icon_{{ sale.id }}">▶</span> Ver productos y pagos
-                                    </button>
-                                    
-                                    <div id="sale_details_{{ sale.id }}" style="display: none; margin-top: 12px;">
-                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                                            <!-- Productos vendidos -->
-                                            <div style="background: white; border-left: 3px solid #3b82f6; padding: 12px; border-radius: 4px;">
-                                                <h4 style="margin: 0 0 8px 0; color: #1f2937; font-size: 13px;">📦 Productos:</h4>
-                                                <div style="display: grid; gap: 6px;">
-                                                    {% for item in sale.items %}
-                                                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; padding: 6px; background: #f3f4f6; border-radius: 4px; font-size: 13px;">
-                                                        <div><strong>{{ item.product.name }}</strong></div>
-                                                        <div>Cant: <strong>{{ item.qty }}</strong></div>
-                                                        <div style="text-align: right;"><strong>{{ item.line_total_cents | money }}</strong></div>
-                                                    </div>
-                                                    {% endfor %}
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Historial de pagos -->
-                                            <div style="background: white; border-left: 3px solid #10b981; padding: 12px; border-radius: 4px;">
-                                                <h4 style="margin: 0 0 8px 0; color: #1f2937; font-size: 13px;">💰 Historial de Pagos:</h4>
-                                                {% if sale.payments %}
-                                                <div style="display: grid; gap: 6px;">
-                                                    {% for payment in sale.payments %}
-                                                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 6px; background: #f0fdf4; border-radius: 4px; font-size: 13px;">
-                                                        <div>{{ payment.created_at.strftime("%d/%m %H:%M") }}</div>
-                                                        <div><strong>{{ payment.amount_cents | money }}</strong></div>
-                                                        <div style="font-size: 11px; color: #6b7280;">{{ payment.payment_method }}</div>
-                                                    </div>
-                                                    {% if payment.notes %}
-                                                    <div style="font-size: 11px; color: #6b7280; padding: 0 6px;">💬 {{ payment.notes }}</div>
-                                                    {% endif %}
-                                                    {% endfor %}
-                                                </div>
-                                                {% else %}
-                                                <p style="color: #6b7280; margin: 0; font-size: 13px;">No hay pagos registrados</p>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div style="text-align: center; padding: 48px 0;">
-        <p style="font-size: 48px; margin: 0;">✅</p>
-        <h3 style="margin: 16px 0 8px 0;">¡No hay deudas pendientes!</h3>
-        <p style="color: #6b7280; margin: 0 0 20px 0;">Todas las ventas están pagadas</p>
-    </div>
-    {% endif %}
-</div>
-
-<script>
-function toggleCustomerDetails(event, index) {
-    // No hacer nada si el click fue en un botón o enlace
-    if (event.target.tagName === 'BUTTON' || event.target.tagName === 'A' || event.target.closest('a')) {
-        return;
-    }
-    
-    const details = document.getElementById('customer_details_' + index);
-    
-    if (details.style.display === 'none') {
-        details.style.display = 'table-row';
-    } else {
-        details.style.display = 'none';
-    }
+.debt-header {
+    background: white;
+    color: #1f2937;
+    padding: 32px 28px;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    border-left: 6px solid #3b82f6;
 }
 
-function toggleSaleDetails(event, saleId) {
-    event.stopPropagation();
-    const details = document.getElementById('sale_details_' + saleId);
-    const icon = document.getElementById('toggle_icon_' + saleId);
+.debt-header-left h1 {
+    margin: 0 0 6px 0;
+    font-size: 32px;
+    font-weight: 800;
+    color: #111827;
+    letter-spacing: -0.5px;
+}
+
+.debt-header-left p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.debt-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.debt-total-badge {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 18px;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.9);
+}
+
+.table-container {
+    max-height: 600px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    border-radius: 12px;
+}
+
+.table-container::-webkit-scrollbar {
+    width: 12px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f9fafb;
+    border-radius: 10px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    border-radius: 10px;
+    border: 2px solid #f9fafb;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
+}
+
+.customer-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.customer-table thead th {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    text-align: left;
+    padding: 18px;
+    font-weight: 700;
+    color: white;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.customer-table tbody tr.customer-row {
+    background: white;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.customer-table tbody tr.customer-row:hover {
+    background: #f9fafb;
+    transform: translateX(2px);
+    box-shadow: -4px 0 0 0 #3b82f6, 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.customer-cell {
+    padding: 16px;
+    word-wrap: break-word;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .debt-header {
+        padding: 24px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+    }
     
-    if (details.style.display === 'none') {
-        details.style.display = 'block';
-        icon.textContent = '▼';
-    } else {
-        details.style.display = 'none';
-        icon.textContent = '▶';
+    .debt-header-left h1 {
+        font-size: 24px;
+    }
+    
+    .debt-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+    
+    .debt-actions button,
+    .debt-total-badge {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+    }
+    
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    .customer-table {
+        font-size: 13px;
+        table-layout: auto;
+    }
+    
+    .customer-cell {
+        padding: 12px 8px;
+    }
+    
+    .customer-table thead th {
+        padding: 14px 8px;
+        font-size: 11px;
+    }
+}
+</style>
+
+<div class="debts-container">
+
+    <!-- KPI Card - Deuda Total -->
+    <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 32px;">
+        <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-radius: 12px; padding: 20px 24px; box-shadow: 0 4px 16px rgba(239, 68, 68, 0.15); border: 2px solid #fca5a5; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -70px; right: -70px; width: 140px; height: 140px; background: rgba(255,255,255,0.2); border-radius: 50%;"></div>
+            <div style="position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                <div>
+                    <div style="font-size: 12px; color: #7f1d1d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">💰 Deuda Total Pendiente</div>
+                    <div style="font-weight: 800; font-size: 34px; color: #dc2626;">{{ total_debt_cents | money }}</div>
+                </div>
+                <button type="button" id="openDebtsSummary" class="button" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; font-weight: 700; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); padding: 14px 24px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; flex-shrink: 0;">
+                    🧾 Ver resumen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
+        {% if grouped_debts %}
+        <div class="table-container">
+            <table class="customer-table">
+                <thead>
+                    <tr>
+                        <th class="customer-cell">Cliente</th>
+                        <th class="customer-cell" style="text-align: center;">N° Ventas</th>
+                        <th class="customer-cell" style="text-align: right;">Deuda Total</th>
+                        <th class="customer-cell" style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for customer in grouped_debts %}
+                    <tr data-customer="{{ customer.customer_name }}" 
+                        data-customer-index="{{ loop.index0 }}"
+                        class="customer-row">
+                        <td class="customer-cell" style="font-weight: 700; font-size: 16px; color: #1f2937;">
+                            👤 {{ customer.customer_name }}
+                        </td>
+                        <td class="customer-cell" style="text-align: center;">
+                            <span style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1e40af; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);">
+                                {{ customer.sales|length }} venta{% if customer.sales|length != 1 %}s{% endif %}
+                            </span>
+                        </td>
+                        <td class="customer-cell" style="text-align: right; color: #ef4444; font-weight: 800; font-size: 20px;">
+                            {{ customer.total_debt_cents | money }}
+                        </td>
+                        <td class="customer-cell" style="text-align: center;">
+                            <button type="button" 
+                                    class="button secondary small" 
+                                    style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;"
+                                    onclick="event.stopPropagation(); window.location.href='{{ url_for('debt_customer_receipt', customer=customer.customer_key) }}';">
+                                🧾 Boleta
+                            </button>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%); border-radius: 12px;">
+            <div style="font-size: 64px; margin: 0 0 16px 0;">✅</div>
+            <h3 style="margin: 0 0 8px 0; color: #1f2937; font-size: 22px;">¡No hay deudas pendientes!</h3>
+            <p style="color: #6b7280; margin: 0; font-size: 15px;">Todas las ventas estan pagadas</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div id="debtsSummaryModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 9999; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 16px; width: min(1000px, 95vw); max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 2px solid #e5e7eb; background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);">
+            <h3 style="margin: 0; font-size: 20px; color: #111827; font-weight: 700;">🧾 Resumen de deudas</h3>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" id="copyDebtsSummary" class="button secondary small" style="font-weight: 600;">📋 Copiar</button>
+                <button type="button" id="closeDebtsSummary" class="button secondary small" style="font-weight: 600;">✕ Cerrar</button>
+            </div>
+        </div>
+        <div style="padding: 24px; display: grid; gap: 16px; background: #f9fafb;">
+            <textarea id="debtsSummaryText" rows="16" style="width: 100%; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; padding: 16px; border: 2px solid #e5e7eb; border-radius: 10px; background: white; line-height: 1.6; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);" readonly></textarea>
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" id="downloadDebtsSummary" class="button" style="font-weight: 600; box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);">⬇️ Descargar TXT</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="customerDetailModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 9999; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 16px; width: min(900px, 95vw); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+        <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 2px solid #e5e7eb; background: linear-gradient(135deg, #1f2937 0%, #111827 100%); color: white; z-index: 100;">
+            <h3 id="modalCustomerName" style="margin: 0; font-size: 22px; color: white; font-weight: 700;">📦 Detalles del Cliente</h3>
+            <button type="button" id="closeCustomerModal" class="button secondary small" style="font-weight: 600; background: white; color: #1f2937; flex-shrink: 0;">✕ Cerrar</button>
+        </div>
+        <div style="flex: 1; overflow-y: auto; padding: 24px; min-height: 0;">
+            <div id="modalContent"></div>
+        </div>
+        <div style="flex-shrink: 0; display: flex; justify-content: flex-end; gap: 12px; padding: 20px 24px; border-top: 2px solid #e5e7eb; background: #f9fafb; z-index: 100; flex-wrap: wrap;">
+            <button type="button" id="receiptCustomerBtn" class="button secondary" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; font-weight: 600;">
+                🧾 Generar Boleta
+            </button>
+            <button type="button" id="registerPaymentBtn" class="button success" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; font-weight: 600; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2);">
+                💳 Registrar Pago
+            </button>
+        </div>
+    </div>
+</div>
+
+<script id="debtsSummaryData" type="application/json">
+{{ debts_summary_json | safe }}
+</script>
+
+<script id="customersData" type="application/json">
+{{ grouped_debts_json | safe }}
+</script>
+
+<script>
+function openCustomerDetail(customerRow) {
+    try {
+        const customerIndex = parseInt(customerRow.dataset.customerIndex);
+        const customersData = JSON.parse(document.getElementById('customersData').textContent);
+        const customerData = customersData[customerIndex];
+
+        if (!customerData) {
+            console.error('Cliente no encontrado en índice', customerIndex);
+            alert('Error: No se encontraron los datos del cliente');
+            return;
+        }
+
+        const customerName = customerData.customer_name;
+        const customerKey = customerData.customer_key;
+        const totalOriginal = customerData.total_original_cents;
+        const totalPaid = customerData.total_paid_cents;
+        const totalDebt = customerData.total_debt_cents;
+        const items = customerData.items_list || [];
+        const salesSummary = customerData.sales_summary || [];
+
+        const formatMoney = function(cents) {
+            const value = cents / 100;
+            return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        };
+
+        const itemsHtml = items.length > 0 
+            ? items.map(item => `
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; padding: 10px 12px; background: white; border-radius: 6px; font-size: 14px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); border-left: 3px solid #dbeafe;">
+                    <div style="font-weight: 600; color: #1f2937;">${item.product_name}</div>
+                    <div style="color: #6b7280;">Cant: <strong style="color: #1f2937;">${item.qty}</strong></div>
+                    <div style="text-align: right; font-weight: 700; color: #3b82f6;">${formatMoney(item.line_total_cents)}</div>
+                </div>
+            `).join('')
+            : '<p style="color: #6b7280; margin: 0; font-size: 14px;">No hay productos registrados</p>';
+
+        const salesHtml = salesSummary.length > 0
+            ? salesSummary.map(sale => `
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 12px; padding: 12px; background: white; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);">
+                    <div>
+                        <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px;">Fecha</div>
+                        <div style="font-weight: 600; color: #111827;">${sale.created_at}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px;">Total</div>
+                        <div style="font-weight: 700; color: #111827;">${formatMoney(sale.total_cents)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px;">Pagado</div>
+                        <div style="font-weight: 700; color: #059669;">${formatMoney(sale.paid_cents)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px;">Pendiente</div>
+                        <div style="font-weight: 700; color: #dc2626;">${formatMoney(sale.pending_cents)}</div>
+                    </div>
+                </div>
+            `).join('')
+            : '<p style="color: #6b7280; margin: 0; font-size: 14px;">No hay ventas registradas</p>';
+
+        const contentHtml = `
+            <h3 style="margin: 0 0 20px 0; color: #1f2937; border-bottom: 3px solid #3b82f6; padding-bottom: 12px; font-size: 18px;">
+                📦 Productos acumulados de ${customerName}
+            </h3>
+
+            <div style="background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%); border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);">
+                <div style="display: grid; gap: 8px;">
+                    ${itemsHtml}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);">
+                    <div style="font-size: 13px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Monto original</div>
+                    <div style="font-weight: 800; font-size: 20px; color: #111827; margin-top: 4px;">${formatMoney(totalOriginal)}</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.1);">
+                    <div style="font-size: 13px; color: #059669; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Monto adelantado</div>
+                    <div style="font-weight: 800; font-size: 20px; color: #10b981; margin-top: 4px;">${formatMoney(totalPaid)}</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); padding: 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.1);">
+                    <div style="font-size: 13px; color: #dc2626; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Monto por pagar</div>
+                    <div style="font-weight: 800; font-size: 20px; color: #ef4444; margin-top: 4px;">${formatMoney(totalDebt)}</div>
+                </div>
+            </div>
+
+            <div style="display: grid; gap: 10px;">
+                ${salesHtml}
+            </div>
+        `;
+
+        document.getElementById('modalCustomerName').textContent = '📦 Detalles de ' + customerName;
+        document.getElementById('modalContent').innerHTML = contentHtml;
+        const paymentBtn = document.getElementById('registerPaymentBtn');
+        const receiptBtn = document.getElementById('receiptCustomerBtn');
+        if (customerKey) {
+            paymentBtn.onclick = function() {
+                window.location.href = '/debts/customer/payment?customer=' + encodeURIComponent(customerKey);
+            };
+            paymentBtn.style.display = 'inline-flex';
+            receiptBtn.onclick = function() {
+                window.location.href = '/debts/customer/receipt?customer=' + encodeURIComponent(customerKey);
+            };
+            receiptBtn.style.display = 'inline-flex';
+        } else {
+            paymentBtn.onclick = null;
+            paymentBtn.style.display = 'none';
+            receiptBtn.onclick = null;
+            receiptBtn.style.display = 'none';
+        }
+        document.getElementById('customerDetailModal').style.display = 'flex';
+    } catch(error) {
+        console.error('Error al abrir detalles del cliente:', error);
+        alert('Error al cargar los detalles del cliente: ' + error.message);
     }
 }
 
 // Agregar event listeners a todas las filas de clientes
 document.addEventListener('DOMContentLoaded', function() {
     const rows = document.querySelectorAll('.customer-row');
-    rows.forEach(function(row, index) {
+    console.log('Filas encontradas:', rows.length);
+    
+    rows.forEach(function(row) {
+        row.style.cursor = 'pointer';
         row.addEventListener('click', function(event) {
-            toggleCustomerDetails(event, index + 1);
+            console.log('Fila clickeada:', row.dataset.customer);
+            openCustomerDetail(row);
         });
     });
 
-    const toggleButtons = document.querySelectorAll('.toggle-sale-details');
-    toggleButtons.forEach(function(button) {
-        button.addEventListener('click', function(event) {
-            const saleId = this.getAttribute('data-sale-id');
-            toggleSaleDetails(event, saleId);
+    const detailModal = document.getElementById('customerDetailModal');
+    const detailCloseBtn = document.getElementById('closeCustomerModal');
+
+    if (detailCloseBtn) {
+        detailCloseBtn.addEventListener('click', function() {
+            detailModal.style.display = 'none';
+        });
+    }
+
+    if (detailModal) {
+        detailModal.addEventListener('click', function(event) {
+            if (event.target === detailModal) {
+                detailModal.style.display = 'none';
+            }
+        });
+    }
+
+    const modal = document.getElementById('debtsSummaryModal');
+    const openBtn = document.getElementById('openDebtsSummary');
+    const closeBtn = document.getElementById('closeDebtsSummary');
+    const copyBtn = document.getElementById('copyDebtsSummary');
+    const downloadBtn = document.getElementById('downloadDebtsSummary');
+    const textArea = document.getElementById('debtsSummaryText');
+    const dataTag = document.getElementById('debtsSummaryData');
+
+    const formatMoney = function(cents) {
+        const value = Number(cents || 0) / 100;
+        return value.toFixed(2);
+    };
+
+    const buildSummaryText = function(data) {
+        const lines = [];
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 19).replace('T', ' ');
+        lines.push('RESUMEN DE DEUDAS');
+        lines.push('Fecha: ' + dateStr);
+        lines.push('Deuda total: ' + formatMoney(data.total_debt_cents));
+        lines.push('');
+
+        (data.customers || []).forEach(function(customer) {
+            lines.push('Cliente: ' + (customer.customer_name || 'Sin nombre'));
+            lines.push('Monto original: ' + formatMoney(customer.total_original_cents));
+            lines.push('Monto adelantado: ' + formatMoney(customer.total_paid_cents));
+            lines.push('Monto por pagar: ' + formatMoney(customer.total_debt_cents));
+            lines.push('Productos:');
+
+            const items = customer.items_list || [];
+            if (items.length === 0) {
+                lines.push('  - (Sin productos)');
+            } else {
+                items.forEach(function(item) {
+                    lines.push('  - ' + item.product_name + ' | Cant: ' + item.qty + ' | Subtotal: ' + formatMoney(item.line_total_cents));
+                });
+            }
+            lines.push('');
+        });
+
+        return lines.join('\n');
+    };
+
+    const openModal = function() {
+        const data = JSON.parse(dataTag.textContent || '{}');
+        textArea.value = buildSummaryText(data);
+        modal.style.display = 'flex';
+    };
+
+    const closeModal = function() {
+        modal.style.display = 'none';
+    };
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+
+    downloadBtn.addEventListener('click', function() {
+        const text = textArea.value || '';
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        const now = new Date();
+        const stamp = now.toISOString().slice(0, 10).replace(/-/g, '');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'deudas-' + stamp + '.txt';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    });
+
+    copyBtn.addEventListener('click', function() {
+        const text = textArea.value || '';
+        navigator.clipboard.writeText(text).then(function() {
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✓ Copiado';
+            setTimeout(function() {
+                copyBtn.textContent = originalText;
+            }, 2000);
+        }).catch(function() {
+            alert('Error al copiar al portapapeles');
         });
     });
 });

@@ -3,76 +3,132 @@
 <style>
 .action-buttons {
     display: flex;
-    gap: 6px;
+    gap: 12px;
     justify-content: center;
     align-items: center;
-    height: 34px;
-}
-
-.action-buttons form {
-    display: flex;
-    align-items: center;
-    margin: 0;
-    height: 34px;
-    line-height: 0;
+    flex-wrap: wrap;
 }
 
 .action-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 34px;
-    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
     border: 0;
-    font-size: 16px;
+    font-size: 18px;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    transition: all 0.2s ease;
     text-decoration: none;
     padding: 0;
-    line-height: 0;
+    line-height: 1;
     vertical-align: middle;
     font-family: inherit;
     appearance: none;
     -webkit-appearance: none;
     box-sizing: border-box;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .action-btn:active {
-    transform: scale(0.96);
+    opacity: 0.85;
+    transform: scale(0.95);
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 .action-btn.edit {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
-}
-
-.action-btn.edit:hover {
-    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.35);
 }
 
 .action-btn.delete {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
-    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25);
-}
-
-.action-btn.delete:hover {
-    box-shadow: 0 6px 14px rgba(220, 38, 38, 0.35);
 }
 
 .action-btn:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+.table-scroll-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 12px;
+}
+
+.table-scroll-container::-webkit-scrollbar {
+    width: 12px;
+}
+
+.table-scroll-container::-webkit-scrollbar-track {
+    background: #f9fafb;
+    border-radius: 10px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    border-radius: 10px;
+    border: 2px solid #f9fafb;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
+}
+
+.products-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.products-table thead th {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    text-align: left;
+    padding: 18px;
+    font-weight: 700;
+    color: white;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.products-table tbody tr {
+    background: white;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.products-table tbody tr:hover {
+    background: #f9fafb;
+    transform: translateX(2px);
+    box-shadow: -4px 0 0 0 #3b82f6, 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.products-table td {
+    padding: 16px;
+    word-wrap: break-word;
+    overflow: hidden;
 }
 </style>
 <div class="page-head">
     <div>
         <h1>📦 Catálogo de Productos</h1>
-        <p style="color: #6b7280; margin: 4px 0 0 0;">Gestiona todos tus productos</p>
     </div>
-    <a class="button" href="{{ url_for('product_new') }}">➕ Nuevo Producto</a>
+    <button type="button" class="button" onclick="window.location.href='{{ url_for('product_new') }}'">➕ Nuevo Producto</button>
 </div>
 
 <!-- Buscador de productos -->
@@ -91,9 +147,10 @@
 </div>
 {% endif %}
 
-<div class="card">
+<div class="card" style="border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
     {% if products %}
-    <table>
+    <div class="table-scroll-container">
+    <table class="products-table">
         <thead>
             <tr>
                 <th>Nombre</th>
@@ -119,7 +176,7 @@
                     N/A
                     {% endif %}
                 </td>
-                <td style="text-align: center;">
+                <td style="text-align: center; vertical-align: middle;">
                     {% if product.stock < 5 %}
                     <span class="stock-low">{{ product.stock }}</span>
                     {% elif product.stock < 10 %}
@@ -128,30 +185,105 @@
                     <span class="stock-high">{{ product.stock }}</span>
                     {% endif %}
                 </td>
-                <td style="text-align: center;">
+                <td style="text-align: center; vertical-align: middle;">
                     <div class="action-buttons">
-                        <a href="{{ url_for('product_edit', product_id=product.id) }}" class="action-btn edit" title="Editar">✏️</a>
-                        <form method="post" action="{{ url_for('product_delete', product_id=product.id) }}">
-                            <button type="submit" data-confirm="¿Eliminar este producto?" data-confirm-title="Eliminar producto" class="action-btn delete" title="Eliminar">🗑️</button>
-                        </form>
+                        <button type="button" class="action-btn edit" title="Editar" onclick="window.location.href='{{ url_for('product_edit', product_id=product.id) }}'">✏️</button>
+                        <button type="button" class="action-btn delete" title="Eliminar" onclick="openDeleteConfirm('{{ product.id }}', '{{ product.name }}', '{{ url_for('product_delete', product_id=product.id) }}')">🗑️</button>
                     </div>
                 </td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
     <div style="text-align: center; padding: 48px 0;">
         <p style="font-size: 48px; margin: 0;">📭</p>
         <h3 style="margin: 16px 0 8px 0;">No hay productos aún</h3>
         <p style="color: #6b7280; margin: 0 0 20px 0;">Comienza creando tu primer producto</p>
-        <a class="button" href="{{ url_for('product_new') }}">➕ Crear Producto</a>
+        <button type="button" class="button" onclick="window.location.href='{{ url_for('product_new') }}'">➕ Crear Producto</button>
     </div>
     {% endif %}
 </div>
 
+<div id="deleteConfirmModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 16px; width: min(450px, 95vw); box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: slideIn 0.3s ease-out;">
+        <div style="padding: 32px 28px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <h2 id="confirmTitle" style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #1f2937;">¿Eliminar este producto?</h2>
+            <p id="confirmMessage" style="margin: 0 0 24px 0; color: #6b7280; line-height: 1.5;">Esta acción no se puede deshacer</p>
+            <div style="padding: 16px; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px; margin-bottom: 24px;">
+                <p id="productNameConfirm" style="margin: 0; font-weight: 600; color: #7f1d1d;">Producto: -</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 0 28px 28px 28px;">
+            <button type="button" onclick="closeDeleteConfirm()" class="button secondary" style="flex: 1; padding: 12px 20px; font-weight: 600; border-radius: 10px;">Cancelar</button>
+            <button type="button" id="confirmDeleteBtn" onclick="confirmDelete()" class="button" style="flex: 1; padding: 12px 20px; font-weight: 600; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: 0; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+
 {% if products %}
 <script>
+let deleteData = { productId: null, deleteUrl: null };
+
+function openDeleteConfirm(productId, productName, deleteUrl) {
+    deleteData.productId = productId;
+    deleteData.deleteUrl = deleteUrl;
+    
+    document.getElementById('productNameConfirm').textContent = '📦 Producto: ' + productName;
+    document.getElementById('deleteConfirmModal').style.display = 'flex';
+    document.getElementById('confirmDeleteBtn').focus();
+}
+
+function closeDeleteConfirm() {
+    document.getElementById('deleteConfirmModal').style.display = 'none';
+    deleteData.productId = null;
+    deleteData.deleteUrl = null;
+}
+
+function confirmDelete() {
+    if (deleteData.deleteUrl) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = deleteData.deleteUrl;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Cerrar modal con ESC
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeDeleteConfirm();
+    }
+});
+
+// Cerrar modal al hacer clic fuera
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('deleteConfirmModal');
+    if (modal) {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeDeleteConfirm();
+            }
+        });
+    }
+});
+
 (function() {
     const searchInput = document.getElementById('searchInput');
     const clearButton = document.getElementById('clearSearch');

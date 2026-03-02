@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Flask
+instance/
+*.db
+
+# Variables de Entorno (CRÍTICO - no subir a Git)
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backups
+backup/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

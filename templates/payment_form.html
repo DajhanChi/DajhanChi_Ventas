@@ -5,7 +5,7 @@
         <h1>💳 Registrar Pago</h1>
         <p style="color: #6b7280; margin: 4px 0 0 0;">Registra un pago para una venta fiada</p>
     </div>
-    <a class="button secondary" href="{{ url_for('debts') }}">← Volver a Deudas</a>
+    <button type="button" class="button secondary" onclick="window.location.href='{{ url_for('debts') }}'">← Volver a Deudas</button>
 </div>
 
 <div class="card">
@@ -106,7 +106,7 @@
 
         <div style="display: flex; gap: 12px; margin-top: 24px;">
             <button type="submit" class="button" style="flex: 1;">💾 Registrar Pago</button>
-            <a href="{{ url_for('debts') }}" class="button secondary" style="flex: 0 0 auto;">Cancelar</a>
+            <button type="button" class="button secondary" style="flex: 0 0 auto;" onclick="window.location.href='{{ url_for('debts') }}'">Cancelar</button>
         </div>
     </form>
 </div>

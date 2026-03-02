@@ -43,6 +43,35 @@ python app.py
 pip install -r requirements.txt
 ```
 
+## 🔐 Configuración de Seguridad (IMPORTANTE)
+
+### Variables de Entorno
+
+El sistema usa variables de entorno para proteger información sensible:
+
+1. **Copia el archivo de ejemplo:**
+```bash
+copy .env.example .env
+```
+
+2. **Edita `.env` con tus valores reales:**
+```env
+SECRET_KEY=genera-una-clave-aleatoria-aqui
+PROTECTED_USERNAME=dajhanchi
+PROTECTED_USER_SECRET=tu-clave-super-secreta
+```
+
+3. **Genera una SECRET_KEY segura:**
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+### ⚠️ NUNCA subas el archivo `.env` a Git
+
+El archivo `.env` contiene tus credenciales reales y ya está protegido por `.gitignore`.
+
+Solo sube `.env.example` como plantilla (sin valores reales).
+
 ## 🎯 Características
 
 - ✅ Gestión de productos

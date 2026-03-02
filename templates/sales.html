@@ -1,226 +1,374 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-.sales-table {
-    border-collapse: separate;
-    border-spacing: 0 10px;
-}
-
-.sales-table thead th {
-    padding: 16px 18px;
-}
-
-.sales-table tbody td {
-    padding: 16px 18px;
-}
-
-.sales-table tbody tr {
-    background: white;
-}
-
-.sales-table tbody tr:first-child td {
-    border-top: 1px solid #f3f4f6;
-}
-
-.sales-table tbody tr td:first-child {
-    border-top-left-radius: 8px;
-    border-bottom-left-radius: 8px;
-}
-
-.sales-table tbody tr td:last-child {
-    border-top-right-radius: 8px;
-    border-bottom-right-radius: 8px;
-}
-
 .payment-info {
-    background: #dcfce7;
-    padding: 12px;
-    border-radius: 4px;
+    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+    padding: 16px;
+    border-radius: 8px;
     border-left: 4px solid #10b981;
+    border: 1px solid #a7f3d0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .payment-info.status-pendiente {
-    background: #fee2e2;
-    border-left-color: #ef4444;
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-left-color: #dc2626;
+    border-color: #fca5a5;
 }
 
 .payment-info.status-parcial {
-    background: #dbeafe;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
     border-left-color: #3b82f6;
+    border-color: #93c5fd;
 }
 
 .payment-info.status-pagado {
-    background: #dcfce7;
+    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
     border-left-color: #10b981;
+    border-color: #a7f3d0;
 }
 
 .action-buttons {
     display: flex;
-    gap: 6px;
+    gap: 12px;
     justify-content: center;
     align-items: center;
-    height: 34px;
-}
-
-.action-buttons form {
-    display: flex;
-    align-items: center;
-    margin: 0;
-    height: 34px;
-    line-height: 0;
+    flex-wrap: wrap;
 }
 
 .action-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 34px;
-    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
     border: 0;
-    font-size: 16px;
+    font-size: 18px;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    transition: all 0.2s ease;
     text-decoration: none;
     padding: 0;
-    line-height: 0;
+    line-height: 1;
     vertical-align: middle;
     font-family: inherit;
     appearance: none;
     -webkit-appearance: none;
     box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .action-btn:active {
-    transform: scale(0.96);
+    opacity: 0.85;
+    transform: scale(0.95);
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 .action-btn.edit {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
-}
-
-.action-btn.edit:hover {
-    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.35);
 }
 
 .action-btn.delete {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
-    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25);
-}
-
-.action-btn.delete:hover {
-    box-shadow: 0 6px 14px rgba(220, 38, 38, 0.35);
 }
 
 .action-btn:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+.search-container {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.search-input-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+    max-width: 450px;
+}
+
+.search-input-wrapper::before {
+    content: '🔍';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.search-input-wrapper input {
+    width: 100%;
+    padding: 10px 12px 10px 40px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white;
+    font-family: inherit;
+}
+
+.search-input-wrapper input:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-input-wrapper input::placeholder {
+    color: #9ca3af;
+}
+
+.search-button {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: 0;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 14px;
+    min-width: 110px;
+    height: 44px;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.search-button:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.search-button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(59, 130, 246, 0.2);
+}
+
+.clear-button {
+    padding: 10px 20px;
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 14px;
+    min-width: 110px;
+    height: 44px;
+    text-decoration: none;
+}
+
+.clear-button:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+    color: #4b5563;
+}
+
+.clear-button:active {
+    background: #d1d5db;
+}
+
+.table-scroll-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 12px;
+}
+
+.table-scroll-container::-webkit-scrollbar {
+    width: 12px;
+}
+
+.table-scroll-container::-webkit-scrollbar-track {
+    background: #f9fafb;
+    border-radius: 10px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    border-radius: 10px;
+    border: 2px solid #f9fafb;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
+}
+
+.sales-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.sales-table thead th {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    text-align: left;
+    padding: 18px;
+    font-weight: 700;
+    color: white;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.sales-table tbody tr {
+    background: white;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sales-table tbody tr:hover {
+    background: #f9fafb;
+    transform: translateX(2px);
+    box-shadow: -4px 0 0 0 #3b82f6, 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.sales-table td {
+    padding: 16px;
+    word-wrap: break-word;
+    overflow: hidden;
+}
+
+.sale-row {
+    transition: background-color 0.15s ease;
+}
+
+.sale-row:hover {
+    background-color: #f0f9ff !important;
+}
+
+.badge {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    letter-spacing: 0.3px;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.badge-info {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #0c4a6e;
+    border: 1px solid #93c5fd;
+}
+
+.badge-warning {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #78350f;
+    border: 1px solid #fcd34d;
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #7f1d1d;
+    border: 1px solid #fca5a5;
 }
 </style>
 <div class="page-head">
     <div>
         <h1>💰 Registro de Ventas</h1>
-        <p style="color: #6b7280; margin: 4px 0 0 0;">Visualiza y gestiona todas tus ventas</p>
+        <div style="margin-top: 16px;">
+            <form method="get" action="{{ url_for('sales') }}" class="search-container">
+                <div class="search-input-wrapper">
+                    <input type="text" id="salesSearch" name="q" value="{{ search_q or '' }}" placeholder="Buscar por nombre de cliente..." autocomplete="off">
+                </div>
+                <button type="submit" class="search-button">
+                    <span>🔍</span>
+                    <span>Buscar</span>
+                </button>
+                {% if search_q %}
+                <a href="{{ url_for('sales') }}" class="clear-button">
+                    <span>✕</span>
+                    <span>Limpiar</span>
+                </a>
+                {% endif %}
+            </form>
+        </div>
     </div>
-    <a class="button" href="{{ url_for('sale_new') }}">➕ Nueva Venta</a>
+    <button type="button" class="button" onclick="window.location.href='{{ url_for('sale_new') }}'">➕ Nueva Venta</button>
 </div>
 
-<div class="card">
+<div class="card" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
     {% if sales %}
-    <div style="overflow-x: auto;">
-        <table class="sales-table" style="width: 100%;">
+    <div class="table-scroll-container">
+        <table class="sales-table">
             <thead>
-                <tr style="border-bottom: 2px solid #e5e7eb;">
-                    <th style="text-align: center; width: 30px; padding: 8px;">📌</th>
-                    <th style="text-align: left; padding: 12px;">Fecha</th>
-                    <th style="text-align: left; padding: 12px;">Cliente</th>
-                    <th style="text-align: center; padding: 12px;">Método</th>
-                    <th style="text-align: center; padding: 12px;">Estado Pago</th>
-                    <th style="text-align: right; padding: 12px;">Total</th>
-                    <th style="text-align: center; padding: 8px;">Acción</th>
+                <tr>
+                    <th style="text-align: center; width: 30px;">📌</th>
+                    <th style="text-align: left;">Fecha</th>
+                    <th style="text-align: left;">Cliente</th>
+                    <th style="text-align: center;">Método</th>
+                    <th style="text-align: center;">Estado Pago</th>
+                    <th style="text-align: right;">Total</th>
+                    <th style="text-align: center;">Acción</th>
                 </tr>
             </thead>
             <tbody>
             {% for sale in sales %}
-                <tr style="border-bottom: 1px solid #f3f4f6; cursor: pointer;" data-sale-id="{{ sale.id }}" class="sale-row">
-                    <td style="text-align: center; padding: 8px 6px; vertical-align: middle;">
-                        <span id="icon_{{ sale.id }}" style="color: #6b7280; font-size: 12px;">▶</span>
+                <tr style="cursor: pointer;" data-sale-id="{{ sale.id }}" data-customer="{{ sale.customer_name or 'anonimo' }}" class="sale-row">
+                    <td style="text-align: center; vertical-align: middle;">
+                        <span id="icon_{{ sale.id }}" style="color: #9ca3af; font-size: 11px; transition: color 0.2s ease;">▶</span>
                     </td>
-                    <td style="padding: 8px 10px; vertical-align: middle;">{{ sale.created_at.strftime("%d/%m/%Y %H:%M") }}</td>
-                    <td style="padding: 8px 10px; font-weight: 500; vertical-align: middle;">{{ sale.customer_name or "Anónimo" }}</td>
-                    <td style="text-align: center; padding: 8px 10px; vertical-align: middle;">
+                    <td style="vertical-align: middle; color: #6b7280; font-size: 13px;">{{ sale.created_at.strftime("%d/%m/%Y %H:%M") }}</td>
+                    <td style="font-weight: 600; vertical-align: middle; color: #1f2937;">{{ sale.customer_name or "Anónimo" }}</td>
+                    <td style="text-align: center; vertical-align: middle;">
                         {% if sale.payment_method == 'efectivo' or not sale.payment_method %}
-                            <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">💵 Efectivo</span>
+                            <span class="badge badge-success">💵 Efectivo</span>
                         {% elif sale.payment_method == 'yape' %}
-                            <span style="background: #dbeafe; color: #0c4a6e; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">📱 Yape</span>
+                            <span class="badge badge-info">📱 Yape</span>
                         {% elif sale.payment_method == 'fiado' %}
-                            <span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">📝 Fiado</span>
+                            <span class="badge badge-warning">📝 Fiado</span>
                         {% else %}
-                            <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">💵 {{ sale.payment_method }}</span>
+                            <span class="badge badge-success">💵 {{ sale.payment_method }}</span>
                         {% endif %}
                     </td>
-                    <td style="text-align: center; padding: 8px 10px; vertical-align: middle;">
+                    <td style="text-align: center; vertical-align: middle;">
                         {% if sale.payment_status == 'pagado' %}
-                            <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">✅ Pagado</span>
+                            <span class="badge badge-success">✅ Pagado</span>
                         {% elif sale.payment_status == 'pendiente' %}
-                            <span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">⏳ Pendiente</span>
+                            <span class="badge badge-danger">⏳ Pendiente</span>
                         {% elif sale.payment_status == 'parcial' %}
-                            <span style="background: #dbeafe; color: #0c4a6e; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; display: inline-block;">💵 Parcial</span>
+                            <span class="badge badge-info">💵 Parcial</span>
                         {% endif %}
                     </td>
-                    <td style="text-align: right; padding: 8px 10px; color: #10b981; font-weight: 600; vertical-align: middle;">{{ sale.total_cents | money }}</td>
-                    <td style="text-align: center; padding: 6px; vertical-align: middle;">
+                    <td style="text-align: right; color: #059669; font-weight: 700; vertical-align: middle; font-size: 15px;">{{ sale.total_cents | money }}</td>
+                    <td style="text-align: center; vertical-align: middle;">
                         <div class="action-buttons">
-                            <a href="{{ url_for('sale_edit', sale_id=sale.id) }}" class="action-btn edit" title="Editar">✏️</a>
-                            <form method="post" action="{{ url_for('sale_delete', sale_id=sale.id) }}">
-                                <button type="submit" data-confirm="¿Eliminar esta venta y devolver stock?" data-confirm-title="Eliminar venta" class="action-btn delete" title="Eliminar">🗑️</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                <tr id="details_{{ sale.id }}" style="display: none; background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
-                    <td colspan="7" style="padding: 16px;">
-                        <div style="display: grid; gap: 16px;">
-                            <!-- Productos -->
-                            <div style="background: white; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 4px;">
-                                <h4 style="margin: 0 0 12px 0; color: #1f2937;">📦 Productos en esta venta:</h4>
-                                <div style="display: grid; gap: 8px;">
-                                    {% for item in sale.items %}
-                                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; padding: 8px; background: #f3f4f6; border-radius: 4px; font-size: 14px;">
-                                        <div>📦 <strong>{{ item.product.name }}</strong></div>
-                                        <div>Cantidad: <strong>{{ item.qty }}</strong></div>
-                                        <div>P.U.: <strong>{{ item.unit_price_cents | money }}</strong></div>
-                                        <div style="text-align: right;">Subtotal: <strong>{{ item.line_total_cents | money }}</strong></div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            
-                            <!-- Información de pago si es fiado -->
-                            {% if sale.payment_method == 'fiado' %}
-                            <div class="payment-info status-{{ sale.payment_status }}">
-                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-                                    <div>
-                                        <p style="margin: 0; font-size: 12px; color: #6b7280;">Total venta</p>
-                                        <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700;">{{ sale.total_cents | money }}</p>
-                                    </div>
-                                    <div>
-                                        <p style="margin: 0; font-size: 12px; color: #6b7280;">Pagado</p>
-                                        <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700; color: #10b981;">{{ sale.paid_cents | money }}</p>
-                                    </div>
-                                    <div>
-                                        <p style="margin: 0; font-size: 12px; color: #6b7280;">Pendiente</p>
-                                        <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 700; color: #ef4444;">{{ sale.pending_cents | money }}</p>
-                                    </div>
-                                </div>
-                                {% if sale.payment_status != 'pagado' %}
-                                <a href="{{ url_for('payment_register', sale_id=sale.id) }}" class="button" style="display: inline-block; margin-top: 12px; padding: 8px 16px; font-size: 14px;">💳 Registrar Pago</a>
-                                {% endif %}
-                            </div>
-                            {% endif %}
+                            <button type="button" class="action-btn edit" title="Editar" onclick="window.location.href='{{ url_for('sale_edit', sale_id=sale.id) }}'">✏️</button>
+                            <button type="button" class="action-btn delete" title="Eliminar" onclick="openDeleteConfirm('{{ sale.id }}', '{{ sale.customer_name }}', '{{ url_for('sale_delete', sale_id=sale.id) }}' )">🗑️</button>
                         </div>
                     </td>
                 </tr>
@@ -233,28 +381,171 @@
         <p style="font-size: 48px; margin: 0;">📭</p>
         <h3 style="margin: 16px 0 8px 0;">No hay ventas registradas</h3>
         <p style="color: #6b7280; margin: 0 0 20px 0;">Inicia tu primer registro de venta</p>
-        <a class="button" href="{{ url_for('sale_new') }}">➕ Registrar Venta</a>
+        <button type="button" class="button" onclick="window.location.href='{{ url_for('sale_new') }}'">➕ Registrar Venta</button>
     </div>
     {% endif %}
 </div>
 
+<div id="saleDetailModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 9999; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 16px; width: min(900px, 95vw); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+        <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 2px solid #e5e7eb; background: linear-gradient(135deg, #1f2937 0%, #111827 100%); color: white;">
+            <div>
+                <h3 id="saleModalTitle" style="margin: 0; font-size: 22px; color: white; font-weight: 700;">Detalle de Venta</h3>
+                <p id="saleModalSubtitle" style="margin: 4px 0 0 0; font-size: 12px; color: #e5e7eb;">-</p>
+            </div>
+            <button type="button" id="closeSaleModal" class="button secondary small" style="font-weight: 600; background: white; color: #1f2937;">✕ Cerrar</button>
+        </div>
+        <div style="flex: 1; overflow-y: auto; padding: 24px; min-height: 0;">
+            <div id="saleModalContent"></div>
+        </div>
+
+    </div>
+</div>
+
+<div id="deleteConfirmModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(4px);">
+    <div style="background: white; border-radius: 16px; width: min(450px, 95vw); box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: slideIn 0.3s ease-out;">
+        <div style="padding: 32px 28px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <h2 id="confirmTitle" style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #1f2937;">¿Eliminar esta venta?</h2>
+            <p id="confirmMessage" style="margin: 0 0 24px 0; color: #6b7280; line-height: 1.5;">Se eliminará la venta y se devolverá el stock de los productos</p>
+            <div style="padding: 16px; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px; margin-bottom: 24px;">
+                <p id="customerNameConfirm" style="margin: 0; font-weight: 600; color: #7f1d1d;">Cliente: -</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 0 28px 28px 28px;">
+            <button type="button" onclick="closeDeleteConfirm()" class="button secondary" style="flex: 1; padding: 12px 20px; font-weight: 600; border-radius: 10px;">Cancelar</button>
+            <button type="button" id="confirmDeleteBtn" onclick="confirmDelete()" class="button" style="flex: 1; padding: 12px 20px; font-weight: 600; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: 0; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+
+<script id="salesData" type="application/json">
+{{ sales_json | safe }}
+</script>
+
 <script>
-function toggleDetails(event, saleId) {
-    // No hacer nada si el click fue en un botón, form o enlace
+let deleteData = { saleId: null, deleteUrl: null };
+
+function openDeleteConfirm(saleId, customerName, deleteUrl) {
+    deleteData.saleId = saleId;
+    deleteData.deleteUrl = deleteUrl;
+    
+    document.getElementById('customerNameConfirm').textContent = '👤 Cliente: ' + customerName;
+    document.getElementById('deleteConfirmModal').style.display = 'flex';
+    document.getElementById('confirmDeleteBtn').focus();
+}
+
+function closeDeleteConfirm() {
+    document.getElementById('deleteConfirmModal').style.display = 'none';
+    deleteData.saleId = null;
+    deleteData.deleteUrl = null;
+}
+
+function confirmDelete() {
+    if (deleteData.deleteUrl) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = deleteData.deleteUrl;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Cerrar modal con ESC
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeDeleteConfirm();
+    }
+});
+
+// Cerrar modal al hacer clic fuera
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('deleteConfirmModal');
+    if (modal) {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeDeleteConfirm();
+            }
+        });
+    }
+});
+
+function openSaleDetail(event, saleId) {
     if (event.target.tagName === 'BUTTON' || event.target.tagName === 'A' || event.target.closest('form') || event.target.closest('a')) {
         return;
     }
-    
-    const details = document.getElementById('details_' + saleId);
-    const icon = document.getElementById('icon_' + saleId);
-    
-    if (details.style.display === 'none') {
-        details.style.display = 'table-row';
-        icon.textContent = '▼';
-    } else {
-        details.style.display = 'none';
-        icon.textContent = '▶';
+
+    const salesData = JSON.parse(document.getElementById('salesData').textContent || '[]');
+    const sale = salesData.find(item => item.id === Number(saleId));
+
+    if (!sale) {
+        alert('No se pudo cargar el detalle de la venta.');
+        return;
     }
+
+    const formatMoney = function(cents) {
+        const value = Number(cents || 0) / 100;
+        return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    };
+
+    const itemsHtml = (sale.items || []).map(item => `
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; padding: 12px; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; align-items: center;">
+            <div style="font-weight: 600; color: #1f2937;">📦 ${item.product_name}</div>
+            <div style="color: #6b7280;">Cantidad: <strong style="color: #1f2937;">${item.qty}</strong></div>
+            <div style="color: #6b7280;">P.U.: <strong style="color: #3b82f6;">${formatMoney(item.unit_price_cents)}</strong></div>
+            <div style="text-align: right; color: #6b7280;">Subtotal: <strong style="color: #059669;">${formatMoney(item.line_total_cents)}</strong></div>
+        </div>
+    `).join('') || '<p style="color: #6b7280; margin: 0;">Sin productos</p>';
+
+    const paymentInfoHtml = sale.payment_method === 'fiado' ? `
+        <div class="payment-info status-${sale.payment_status}" style="border: 1px solid; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); margin-top: 16px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                <div>
+                    <p style="margin: 0; font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total venta</p>
+                    <p style="margin: 8px 0 0 0; font-size: 18px; font-weight: 700; color: #1f2937;">${formatMoney(sale.total_cents)}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Pagado</p>
+                    <p style="margin: 8px 0 0 0; font-size: 18px; font-weight: 700; color: #059669;">${formatMoney(sale.paid_cents)}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Pendiente</p>
+                    <p style="margin: 8px 0 0 0; font-size: 18px; font-weight: 700; color: #dc2626;">${formatMoney(sale.pending_cents)}</p>
+                </div>
+            </div>
+        </div>
+    ` : '';
+
+    const contentHtml = `
+        <div style="background: white; border: 1px solid #e5e7eb; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);">
+            <h4 style="margin: 0 0 16px 0; color: #1f2937; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">📦 Productos en esta venta</h4>
+            <div style="display: grid; gap: 10px;">
+                ${itemsHtml}
+            </div>
+        </div>
+        ${paymentInfoHtml}
+    `;
+
+    document.getElementById('saleModalTitle').textContent = 'Detalle de ' + sale.customer_name;
+    document.getElementById('saleModalSubtitle').textContent = sale.created_at + ' · ' + sale.payment_method.toUpperCase();
+    document.getElementById('saleModalContent').innerHTML = contentHtml;
+
+
+
+    document.getElementById('saleDetailModal').style.display = 'flex';
 }
 
 // Agregar event listeners a todas las filas
@@ -263,9 +554,39 @@ document.addEventListener('DOMContentLoaded', function() {
     rows.forEach(function(row) {
         row.addEventListener('click', function(event) {
             const saleId = this.getAttribute('data-sale-id');
-            toggleDetails(event, saleId);
+            openSaleDetail(event, saleId);
         });
     });
+
+    const saleModal = document.getElementById('saleDetailModal');
+    const closeSaleModal = document.getElementById('closeSaleModal');
+    if (closeSaleModal) {
+        closeSaleModal.addEventListener('click', function() {
+            saleModal.style.display = 'none';
+        });
+    }
+    if (saleModal) {
+        saleModal.addEventListener('click', function(event) {
+            if (event.target === saleModal) {
+                saleModal.style.display = 'none';
+            }
+        });
+    }
+
+    const searchInput = document.getElementById('salesSearch');
+    const applyFilter = function() {
+        const query = (searchInput.value || '').trim().toLowerCase();
+        rows.forEach(function(row) {
+            const customer = (row.getAttribute('data-customer') || '').toLowerCase();
+            const match = !query || customer.includes(query);
+            row.style.display = match ? '' : 'none';
+        });
+    };
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilter);
+        applyFilter();
+    }
 });
 </script>
 {% endblock %}
