@@ -128,7 +128,7 @@
     <div>
         <h1>📦 Catálogo de Productos</h1>
     </div>
-    <button type="button" class="button" data-href="{{ url_for('product_new') }}" onclick="window.location.href=this.getAttribute('data-href')">➕ Nuevo Producto</button>
+    <button type="button" class="button" onclick="openProductModal()">➕ Nuevo Producto</button>
 </div>
 
 <!-- Buscador de productos -->
@@ -206,10 +206,16 @@
                 <td style="text-align: center; vertical-align: middle;">
                     <div style="display: flex; gap: 8px; justify-content: center;">
                         <button type="button" 
-                                class="button secondary small" 
+                                class="button secondary small edit-product-btn" 
                                 style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px;"
-                                data-href="{{ url_for('product_edit', product_id=product.id) }}" 
-                                onclick="window.location.href=this.getAttribute('data-href')">
+                                data-product-id="{{ product.id }}"
+                                data-product-name="{{ product.name }}"
+                                data-product-sku="{{ product.sku or '' }}"
+                                data-package-cost="{{ (product.package_cost_cents / 100)|round(2) }}"
+                                data-package-qty="{{ product.package_quantity }}"
+                                data-cost="{{ (product.cost_cents / 100)|round(2) }}"
+                                data-price="{{ (product.price_cents / 100)|round(2) }}"
+                                data-stock="{{ product.stock }}">
                             ✏️ Editar
                         </button>
                         <button type="button" 
@@ -387,4 +393,321 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 </script>
 {% endif %}
+
+<!-- Modal Nuevo Producto -->
+<div id="productModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(6px);">
+    <div style="background: white; border-radius: 20px; width: min(650px, 95vw); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: modalSlideIn 0.3s ease-out;">
+        <div style="padding: 28px 32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border-bottom: 3px solid #1e40af;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin: 0; font-size: 24px; font-weight: 800;">📦 Nuevo Producto</h2>
+                    <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.9;">Agrega un nuevo producto al inventario</p>
+                </div>
+                <button type="button" onclick="closeProductModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">✕</button>
+            </div>
+        </div>
+        
+        <div style="flex: 1; overflow-y: auto; padding: 32px;">
+            <form id="productForm" method="post" action="{{ url_for('product_new') }}">
+                <div style="display: grid; gap: 24px;">
+                    <!-- Nombre del Producto -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            📝 Nombre del Producto <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input name="name" type="text" required placeholder="Ej: Laptop HP 15 Pulgadas" 
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                    </div>
+
+                    <!-- SKU -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            🏷️ SKU / Código
+                        </label>
+                        <input name="sku" type="text" placeholder="Ej: SKU-001" 
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                    </div>
+
+                    <!-- Costo -->
+                    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 10px; border-radius: 12px; border: 2px solid #fcd34d;">
+                        <label style="display: block; font-weight: 700; color: #78350f; margin-bottom: 8px; font-size: 14px;">
+                            💰 Costo Unitario <span style="color: #dc2626;">*</span>
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 12px; color: #78350f; display: block; margin-bottom: 4px; font-weight: 600;">Costo del Paquete</label>
+                                <input id="newPackageCost" name="package_cost" type="number" step="0.01" required placeholder="0.00" 
+                                       style="width: 100%; padding: 8px 12px; border: 2px solid #fcd34d; border-radius: 8px; font-size: 13px; background: white; box-sizing: border-box;"
+                                       onchange="calcularCostoModalNuevo()">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: #78350f; display: block; margin-bottom: 4px; font-weight: 600;">Cantidad en Paquete</label>
+                                <input id="newPackageQty" name="package_qty" type="number" min="1" required placeholder="1" value="1"
+                                       style="width: 100%; padding: 8px 12px; border: 2px solid #fcd34d; border-radius: 8px; font-size: 13px; background: white; box-sizing: border-box;"
+                                       onchange="calcularCostoModalNuevo()">
+                            </div>
+                        </div>
+                        <div style="background: white; border: 2px solid #fcd34d; padding: 7px 10px; margin-top: 8px; border-radius: 8px;">
+                            <p style="font-size: 10px; color: #78350f; margin: 0 0 2px 0; font-weight: 600; letter-spacing: 0.4px;">📊 Calculado</p>
+                            <p style="font-size: 18px; font-weight: 800; color: #dc2626; margin: 0;">$<span id="newCostDisplay">0.00</span></p>
+                            <input id="newCost" name="cost" type="hidden" value="0">
+                        </div>
+                    </div>
+
+                    <!-- Precio -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            💵 Precio de Venta <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input name="price" type="number" step="0.01" required placeholder="0.00" 
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                        <p style="font-size: 12px; color: #6b7280; margin: 8px 0 0 0;">Precio al que se venderá el producto</p>
+                    </div>
+
+                    <!-- Stock -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            📦 Cantidad en Stock <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input name="stock" type="number" min="0" required placeholder="0" value="0"
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div style="padding: 24px 32px; background: #f9fafb; border-top: 2px solid #e5e7eb; display: flex; gap: 12px;">
+            <button type="button" onclick="closeProductModal()" class="button secondary" style="flex: 1; font-weight: 600; padding: 14px;">Cancelar</button>
+            <button type="submit" form="productForm" class="button" style="flex: 2; font-weight: 700; padding: 14px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">✅ Crear Producto</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+</style>
+
+<script>
+function openProductModal() {
+    document.getElementById('productModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeProductModal() {
+    document.getElementById('productModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    document.getElementById('productForm').reset();
+    document.getElementById('newCostDisplay').textContent = '0.00';
+}
+
+function calcularCostoModalNuevo() {
+    const packageCostInput = document.getElementById('newPackageCost');
+    const packageQtyInput = document.getElementById('newPackageQty');
+    const costDisplay = document.getElementById('newCostDisplay');
+    const costHidden = document.getElementById('newCost');
+    
+    const packageCost = parseFloat(packageCostInput.value) || 0;
+    const packageQty = parseInt(packageQtyInput.value) || 1;
+    
+    let costUnitario = 0;
+    if (packageQty > 0 && packageCost > 0) {
+        costUnitario = packageCost / packageQty;
+    }
+    
+    costDisplay.textContent = costUnitario.toFixed(2);
+    costHidden.value = costUnitario.toFixed(2);
+}
+
+// Cerrar con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (document.getElementById('productModal').style.display === 'flex') {
+            closeProductModal();
+        }
+        if (document.getElementById('editProductModal').style.display === 'flex') {
+            closeEditProductModal();
+        }
+    }
+});
+</script>
+
+<!-- Modal Editar Producto -->
+<div id="editProductModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(6px);">
+    <div style="background: white; border-radius: 20px; width: min(650px, 95vw); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: modalSlideIn 0.3s ease-out;">
+        <div style="padding: 28px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border-bottom: 3px solid #b45309;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin: 0; font-size: 24px; font-weight: 800;">✏️ Editar Producto</h2>
+                    <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.9;">Modifica los datos del producto</p>
+                </div>
+                <button type="button" onclick="closeEditProductModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">✕</button>
+            </div>
+        </div>
+        
+        <div style="flex: 1; overflow-y: auto; padding: 32px;">
+            <form id="editProductForm" method="post">
+                <input type="hidden" id="editProductId" name="product_id">
+                <div style="display: grid; gap: 24px;">
+                    <!-- Nombre del Producto -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            📝 Nombre del Producto <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input id="editName" name="name" type="text" required placeholder="Ej: Laptop HP 15 Pulgadas" 
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#f59e0b'; this.style.boxShadow='0 0 0 3px rgba(245, 158, 11, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                    </div>
+
+                    <!-- SKU -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            🏷️ SKU / Código
+                        </label>
+                        <input id="editSku" name="sku" type="text" placeholder="Ej: SKU-001" 
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#f59e0b'; this.style.boxShadow='0 0 0 3px rgba(245, 158, 11, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                    </div>
+
+                    <!-- Costo -->
+                    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 10px; border-radius: 12px; border: 2px solid #fcd34d;">
+                        <label style="display: block; font-weight: 700; color: #78350f; margin-bottom: 8px; font-size: 14px;">
+                            💰 Costo Unitario <span style="color: #dc2626;">*</span>
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 12px; color: #78350f; display: block; margin-bottom: 4px; font-weight: 600;">Costo del Paquete</label>
+                                <input id="editPackageCost" name="package_cost" type="number" step="0.01" required placeholder="0.00" 
+                                       style="width: 100%; padding: 8px 12px; border: 2px solid #fcd34d; border-radius: 8px; font-size: 13px; background: white; box-sizing: border-box;"
+                                       onchange="calcularCostoModalEditar()">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: #78350f; display: block; margin-bottom: 4px; font-weight: 600;">Cantidad en Paquete</label>
+                                <input id="editPackageQty" name="package_qty" type="number" min="1" required placeholder="1" value="1"
+                                       style="width: 100%; padding: 8px 12px; border: 2px solid #fcd34d; border-radius: 8px; font-size: 13px; background: white; box-sizing: border-box;"
+                                       onchange="calcularCostoModalEditar()">
+                            </div>
+                        </div>
+                        <div style="background: white; border: 2px solid #fcd34d; padding: 7px 10px; margin-top: 8px; border-radius: 8px;">
+                            <p style="font-size: 10px; color: #78350f; margin: 0 0 2px 0; font-weight: 600; letter-spacing: 0.4px;">📊 Calculado</p>
+                            <p style="font-size: 18px; font-weight: 800; color: #dc2626; margin: 0;">$<span id="editCostDisplay">0.00</span></p>
+                            <input id="editCost" name="cost" type="hidden" value="0">
+                        </div>
+                    </div>
+
+                    <!-- Precio -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            💵 Precio de Venta <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input id="editPrice" name="price" type="number" step="0.01" required placeholder="0.00" 
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                        <p style="font-size: 12px; color: #6b7280; margin: 8px 0 0 0;">Precio al que se venderá el producto</p>
+                    </div>
+
+                    <!-- Stock -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            📦 Cantidad en Stock <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input id="editStock" name="stock" type="number" min="0" required placeholder="0" value="0"
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#f59e0b'; this.style.boxShadow='0 0 0 3px rgba(245, 158, 11, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div style="padding: 24px 32px; background: #f9fafb; border-top: 2px solid #e5e7eb; display: flex; gap: 12px;">
+            <button type="button" onclick="closeEditProductModal()" class="button secondary" style="flex: 1; font-weight: 600; padding: 14px;">Cancelar</button>
+            <button type="submit" form="editProductForm" class="button" style="flex: 2; font-weight: 700; padding: 14px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">💾 Actualizar Producto</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditProductModal(id, name, sku, packageCost, packageQty, cost, price, stock) {
+    document.getElementById('editProductId').value = id;
+    document.getElementById('editName').value = name;
+    document.getElementById('editSku').value = sku || '';
+    document.getElementById('editPackageCost').value = parseFloat(packageCost) || 0;
+    document.getElementById('editPackageQty').value = parseInt(packageQty) || 1;
+    document.getElementById('editCost').value = cost;
+    document.getElementById('editPrice').value = price;
+    document.getElementById('editStock').value = stock;
+    
+    // Actualizar la acción del formulario
+    document.getElementById('editProductForm').action = '/products/' + id + '/edit';
+    
+    // Recalcular el costo unitario con los valores cargados
+    calcularCostoModalEditar();
+    
+    document.getElementById('editProductModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+// Event listener para botones de editar
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.edit-product-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            openEditProductModal(
+                this.dataset.productId,
+                this.dataset.productName,
+                this.dataset.productSku,
+                this.dataset.packageCost,
+                this.dataset.packageQty,
+                this.dataset.cost,
+                this.dataset.price,
+                this.dataset.stock
+            );
+        });
+    });
+});
+
+function closeEditProductModal() {
+    document.getElementById('editProductModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    document.getElementById('editProductForm').reset();
+    document.getElementById('editCostDisplay').textContent = '0.00';
+}
+
+function calcularCostoModalEditar() {
+    const packageCostInput = document.getElementById('editPackageCost');
+    const packageQtyInput = document.getElementById('editPackageQty');
+    const costDisplay = document.getElementById('editCostDisplay');
+    const costHidden = document.getElementById('editCost');
+    
+    const packageCost = parseFloat(packageCostInput.value) || 0;
+    const packageQty = parseInt(packageQtyInput.value) || 1;
+    
+    let costUnitario = 0;
+    if (packageQty > 0 && packageCost > 0) {
+        costUnitario = packageCost / packageQty;
+    }
+    
+    costDisplay.textContent = costUnitario.toFixed(2);
+    costHidden.value = costUnitario.toFixed(2);
+}
+</script>
 {% endblock %}

@@ -456,8 +456,12 @@ def sales():
         sale_items = []
         for item in sale.items:
             product_name = item.product.name if item.product else "Producto eliminado"
+            product_id = item.product.id if item.product else None
             sale_items.append({
-                "product_name": product_name,
+                "product": {
+                    "id": product_id,
+                    "name": product_name,
+                },
                 "qty": item.qty,
                 "unit_price_cents": item.unit_price_cents,
                 "line_total_cents": item.line_total_cents,
@@ -465,6 +469,8 @@ def sales():
         sales_serializable.append({
             "id": sale.id,
             "created_at": sale.created_at.strftime("%d/%m/%Y %H:%M"),
+            "created_at_date": sale.created_at.strftime("%d/%m/%Y"),
+            "created_at_time": sale.created_at.strftime("%H:%M"),
             "customer_name": sale.customer_name or "Anónimo",
             "customer_key": sale.customer_name or "__SIN_NOMBRE__",
             "payment_method": sale.payment_method or "efectivo",
@@ -476,7 +482,9 @@ def sales():
         })
 
     sales_json = json.dumps(sales_serializable)
-    return render_template("sales.html", sales=items, search_q=search_q, sales_json=sales_json)
+    products = Product.query.filter_by(user_id=user_id).order_by(Product.name.asc()).all()
+    products_data = serialize_products(products)
+    return render_template("sales.html", sales=sales_serializable, search_q=search_q, sales_json=sales_json, products=products_data)
 
 
 @app.route("/sales/new", methods=["GET", "POST"])

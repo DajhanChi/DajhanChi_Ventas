@@ -301,7 +301,7 @@
     <div>
         <h1>💰 Registro de Ventas</h1>
     </div>
-    <button type="button" class="button" data-href="{{ url_for('sale_new') }}" onclick="window.location.href=this.getAttribute('data-href')">➕ Nueva Venta</button>
+    <button type="button" class="button" onclick="openSaleModal()">➕ Nueva Venta</button>
 </div>
 
 <!-- Buscador de ventas -->
@@ -341,8 +341,8 @@
                         <span id="icon_{{ sale.id }}" style="color: #3b82f6; font-size: 14px; transition: all 0.2s ease;">▶</span>
                     </td>
                     <td style="vertical-align: middle;">
-                        <div style="font-weight: 600; color: #1f2937; font-size: 14px;">{{ sale.created_at.strftime("%d/%m/%Y") }}</div>
-                        <div style="font-size: 11px; color: #9ca3af;">{{ sale.created_at.strftime("%H:%M") }}</div>
+                        <div style="font-weight: 600; color: #1f2937; font-size: 14px;">{{ sale.created_at_date }}</div>
+                        <div style="font-size: 11px; color: #9ca3af;">{{ sale.created_at_time }}</div>
                     </td>
                     <td style="vertical-align: middle;">
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -382,10 +382,10 @@
                     <td style="text-align: center; vertical-align: middle;">
                         <div style="display: flex; gap: 8px; justify-content: center;">
                             <button type="button" 
-                                    class="button secondary small" 
+                                    class="button secondary small edit-sale-btn" 
                                     style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px;"
-                                    data-href="{{ url_for('sale_edit', sale_id=sale.id) }}" 
-                                    onclick="window.location.href=this.getAttribute('data-href')">
+                                    data-sale-id="{{ sale.id }}"
+                                    data-sale-data='{{ sale | tojson }}'>
                                 ✏️ Editar
                             </button>
                             <button type="button" 
@@ -531,7 +531,7 @@ function openSaleDetail(event, saleId) {
 
     const itemsHtml = (sale.items || []).map(item => `
         <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; padding: 12px; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; align-items: center;">
-            <div style="font-weight: 600; color: #1f2937;">📦 ${item.product_name}</div>
+            <div style="font-weight: 600; color: #1f2937;">📦 ${item.product.name}</div>
             <div style="color: #6b7280;">Cantidad: <strong style="color: #1f2937;">${item.qty}</strong></div>
             <div style="color: #6b7280;">P.U.: <strong style="color: #3b82f6;">${formatMoney(item.unit_price_cents)}</strong></div>
             <div style="text-align: right; color: #6b7280;">Subtotal: <strong style="color: #059669;">${formatMoney(item.line_total_cents)}</strong></div>
@@ -622,5 +622,580 @@ document.addEventListener('DOMContentLoaded', function() {
         applyFilter();
     }
 });
+</script>
+
+<!-- Modal Nueva Venta -->
+<div id="saleModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(6px);">
+    <div style="background: white; border-radius: 20px; width: min(850px, 95vw); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: modalSlideIn 0.3s ease-out;">
+        <div style="padding: 28px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-bottom: 3px solid #047857;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin: 0; font-size: 24px; font-weight: 800;">💰 Nueva Venta</h2>
+                    <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.9;">Registra una nueva transacción de venta</p>
+                </div>
+                <button type="button" onclick="closeSaleModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">✕</button>
+            </div>
+        </div>
+        
+        <div style="flex: 1; overflow-y: auto; padding: 32px;">
+            <form id="saleForm" method="post" action="{{ url_for('sale_new') }}">
+                <div style="display: grid; gap: 24px;">
+                    <!-- Cliente -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            👤 Nombre del Cliente (Opcional)
+                        </label>
+                        <input id="saleCustomerName" name="customer_name" type="text" placeholder="Ej: Juan Pérez" 
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                        <p style="font-size: 12px; color: #6b7280; margin: 8px 0 0 0;">Deja vacío para ventas anónimas</p>
+                    </div>
+
+                    <!-- Método de Pago -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            💳 Forma de Pago <span style="color: #ef4444;">*</span>
+                        </label>
+                        <select name="payment_method" required
+                                style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; background: white; cursor: pointer; box-sizing: border-box;"
+                                onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)'"
+                                onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                            <option value="efectivo">💵 Efectivo</option>
+                            <option value="yape">📱 Yape</option>
+                            <option value="fiado">📝 Fiado</option>
+                        </select>
+                    </div>
+
+                    <!-- Productos -->
+                    <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 24px; border-radius: 12px; border: 2px solid #bae6fd;">
+                        <h3 style="margin: 0 0 20px 0; color: #0c4a6e; font-size: 16px; font-weight: 800;">📦 Productos a Vender</h3>
+                        
+                        <div id="saleLines">
+                            <div class="sale-line-item" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 16px; margin-bottom: 16px; padding: 18px; background: white; border-radius: 10px; border: 2px solid #e0f2fe; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #0c4a6e; margin-bottom: 6px; font-size: 13px;">🏪 Producto</label>
+                                    <div class="product-search-container" style="position: relative;">
+                                        <input type="text" class="product-search-input" placeholder="Buscar producto..." autocomplete="off"
+                                               style="width: 100%; padding: 10px 14px; border: 2px solid #bae6fd; border-radius: 8px; font-size: 14px; transition: all 0.2s; box-sizing: border-box;"
+                                               onfocus="this.style.borderColor='#0ea5e9'; this.style.boxShadow='0 0 0 3px rgba(14, 165, 233, 0.1)'"
+                                               onblur="this.style.borderColor='#bae6fd'; this.style.boxShadow='none'">
+                                        <input type="hidden" name="product_id" value="">
+                                        <div class="product-suggestions" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #bae6fd; border-radius: 8px; max-height: 250px; overflow-y: auto; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); z-index: 1000; display: none; margin-top: 4px;"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #0c4a6e; margin-bottom: 6px; font-size: 13px;">📊 Cantidad</label>
+                                    <input type="number" name="qty" min="1" value="1"
+                                           style="width: 100%; padding: 10px 14px; border: 2px solid #bae6fd; border-radius: 8px; font-size: 14px; transition: all 0.2s; box-sizing: border-box;"
+                                           onfocus="this.style.borderColor='#0ea5e9'; this.style.boxShadow='0 0 0 3px rgba(14, 165, 233, 0.1)'"
+                                           onblur="this.style.borderColor='#bae6fd'; this.style.boxShadow='none'">
+                                </div>
+
+                                <div style="display: flex; align-items: flex-end;">
+                                    <button type="button" class="sale-remove-line" onclick="removeSaleLine(this)" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);" title="Eliminar producto"
+                                            onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 8px rgba(239, 68, 68, 0.4)'"
+                                            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 4px rgba(239, 68, 68, 0.3)'">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="button secondary" type="button" onclick="addSaleLine()" style="width: 100%; margin-top: 12px; font-weight: 600; background: white; border: 2px solid #bae6fd; color: #0369a1;"
+                                onmouseover="this.style.background='#f0f9ff'; this.style.borderColor='#0ea5e9'"
+                                onmouseout="this.style.background='white'; this.style.borderColor='#bae6fd'">➕ Agregar Otro Producto</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div style="padding: 24px 32px; background: #f9fafb; border-top: 2px solid #e5e7eb; display: flex; gap: 12px;">
+            <button type="button" onclick="closeSaleModal()" class="button secondary" style="flex: 1; font-weight: 600; padding: 14px;">Cancelar</button>
+            <button type="submit" form="saleForm" class="button" style="flex: 2; font-weight: 700; padding: 14px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">✅ Registrar Venta</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.product-suggestion-item {
+    padding: 12px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.15s;
+}
+
+.product-suggestion-item:hover {
+    background: #f0f9ff;
+}
+
+.product-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.product-suggestion-name {
+    font-weight: 700;
+    color: #1f2937;
+    font-size: 14px;
+}
+
+.product-suggestion-stock {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 3px;
+}
+
+.no-results {
+    padding: 14px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 500;
+}
+</style>
+
+<script id="products-data" type="application/json">{{ products | tojson }}</script>
+<script>
+// Datos de productos para el modal
+const productsDataEl = document.getElementById('products-data');
+const productsForSale = productsDataEl ? JSON.parse(productsDataEl.textContent) : [];
+
+function openSaleModal() {
+    document.getElementById('saleModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setupProductSearch();
+    updateSaleRemoveButtons();
+}
+
+function closeSaleModal() {
+    document.getElementById('saleModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    document.getElementById('saleForm').reset();
+    
+    // Resetear líneas de productos a solo una
+    const linesContainer = document.getElementById('saleLines');
+    const firstLine = linesContainer.querySelector('.sale-line-item');
+    linesContainer.innerHTML = '';
+    const newLine = firstLine.cloneNode(true);
+    newLine.querySelector('.product-search-input').value = '';
+    newLine.querySelector('input[name="product_id"]').value = '';
+    newLine.querySelector('input[name="qty"]').value = '1';
+    newLine.querySelector('.product-suggestions').innerHTML = '';
+    newLine.querySelector('.product-suggestions').style.display = 'none';
+    linesContainer.appendChild(newLine);
+    
+    setupProductSearch();
+    updateSaleRemoveButtons();
+}
+
+function showSuggestions(input) {
+    const container = input.closest('.product-search-container');
+    const suggestionsDiv = container.querySelector('.product-suggestions');
+    const searchTerm = input.value.toLowerCase().trim();
+    
+    suggestionsDiv.innerHTML = '';
+    
+    if (searchTerm.length === 0) {
+        suggestionsDiv.style.display = 'none';
+        return;
+    }
+    
+    const filtered = productsForSale.filter(p => 
+        p.name.toLowerCase().includes(searchTerm)
+    ).slice(0, 8);
+    
+    if (filtered.length === 0) {
+        suggestionsDiv.innerHTML = '<div class="no-results">⚠️ No se encontraron productos</div>';
+        suggestionsDiv.style.display = 'block';
+        return;
+    }
+    
+    filtered.forEach(product => {
+        const item = document.createElement('div');
+        item.className = 'product-suggestion-item';
+        item.innerHTML = `
+            <div class="product-suggestion-name">${product.name}</div>
+            <div class="product-suggestion-stock">📦 Stock disponible: ${product.stock}</div>
+        `;
+        item.onclick = function() {
+            selectProduct(container, product);
+        };
+        suggestionsDiv.appendChild(item);
+    });
+    
+    suggestionsDiv.style.display = 'block';
+}
+
+function selectProduct(container, product) {
+    const input = container.querySelector('.product-search-input');
+    const hiddenInput = container.querySelector('input[name="product_id"]');
+    const suggestionsDiv = container.querySelector('.product-suggestions');
+    
+    input.value = product.name;
+    hiddenInput.value = product.id;
+    suggestionsDiv.style.display = 'none';
+}
+
+function setupProductSearch() {
+    document.querySelectorAll('.product-search-input').forEach(input => {
+        input.addEventListener('input', function() {
+            showSuggestions(this);
+        });
+        
+        input.addEventListener('focus', function() {
+            if (this.value.trim().length > 0) {
+                showSuggestions(this);
+            }
+        });
+        
+        input.addEventListener('input', function() {
+            if (this.value.trim().length === 0) {
+                const hiddenInput = this.closest('.product-search-container').querySelector('input[name="product_id"]');
+                hiddenInput.value = '';
+            }
+        });
+    });
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.product-search-container')) {
+        document.querySelectorAll('.product-suggestions').forEach(div => {
+            div.style.display = 'none';
+        });
+    }
+});
+
+function addSaleLine() {
+    const lines = document.getElementById('saleLines');
+    const first = lines.querySelector('.sale-line-item');
+    const clone = first.cloneNode(true);
+    
+    clone.querySelector('.product-search-input').value = '';
+    clone.querySelector('input[name="product_id"]').value = '';
+    clone.querySelector('input[name="qty"]').value = '1';
+    clone.querySelector('.product-suggestions').innerHTML = '';
+    clone.querySelector('.product-suggestions').style.display = 'none';
+    
+    lines.appendChild(clone);
+    setupProductSearch();
+    updateSaleRemoveButtons();
+}
+
+function removeSaleLine(button) {
+    const lines = document.getElementById('saleLines');
+    const lineItems = lines.querySelectorAll('.sale-line-item');
+    
+    if (lineItems.length > 1) {
+        button.closest('.sale-line-item').remove();
+        updateSaleRemoveButtons();
+    } else {
+        alert('⚠️ Debe haber al menos un producto en la venta');
+    }
+}
+
+function updateSaleRemoveButtons() {
+    const lines = document.getElementById('saleLines');
+    const lineItems = lines.querySelectorAll('.sale-line-item');
+    const removeButtons = lines.querySelectorAll('.sale-remove-line');
+    
+    if (lineItems.length === 1) {
+        removeButtons.forEach(function(btn) {
+            btn.style.opacity = '0.3';
+            btn.style.cursor = 'not-allowed';
+            btn.disabled = true;
+        });
+    } else {
+        removeButtons.forEach(function(btn) {
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.disabled = false;
+        });
+    }
+}
+
+// Cerrar con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const saleModalEl = document.getElementById('saleModal');
+        if (saleModalEl && saleModalEl.style.display === 'flex') {
+            closeSaleModal();
+        }
+        const editSaleModalEl = document.getElementById('editSaleModal');
+        if (editSaleModalEl && editSaleModalEl.style.display === 'flex') {
+            closeEditSaleModal();
+        }
+    }
+});
+</script>
+
+<!-- Modal Editar Venta -->
+<div id="editSaleModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10000; backdrop-filter: blur(6px);">
+    <div style="background: white; border-radius: 20px; width: min(850px, 95vw); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: modalSlideIn 0.3s ease-out;">
+        <div style="padding: 28px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border-bottom: 3px solid #b45309;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin: 0; font-size: 24px; font-weight: 800;">✏️ Editar Venta</h2>
+                    <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.9;">Modifica los datos de la transacción</p>
+                </div>
+                <button type="button" onclick="closeEditSaleModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">✕</button>
+            </div>
+        </div>
+        
+        <div style="flex: 1; overflow-y: auto; padding: 32px;">
+            <form id="editSaleForm" method="post">
+                <input type="hidden" id="editSaleId" name="sale_id">
+                <div style="display: grid; gap: 24px;">
+                    <!-- Cliente -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            👤 Nombre del Cliente (Opcional)
+                        </label>
+                        <input id="editSaleCustomerName" name="customer_name" type="text" placeholder="Ej: Juan Pérez" 
+                               style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; box-sizing: border-box;"
+                               onfocus="this.style.borderColor='#f59e0b'; this.style.boxShadow='0 0 0 3px rgba(245, 158, 11, 0.1)'"
+                               onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                        <p style="font-size: 12px; color: #6b7280; margin: 8px 0 0 0;">Deja vacío para ventas anónimas</p>
+                    </div>
+
+                    <!-- Método de Pago -->
+                    <div>
+                        <label style="display: block; font-weight: 700; color: #1f2937; margin-bottom: 8px; font-size: 14px;">
+                            💳 Forma de Pago <span style="color: #ef4444;">*</span>
+                        </label>
+                        <select id="editPaymentMethod" name="payment_method" required
+                                style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; transition: all 0.2s; background: white; cursor: pointer; box-sizing: border-box;"
+                                onfocus="this.style.borderColor='#f59e0b'; this.style.boxShadow='0 0 0 3px rgba(245, 158, 11, 0.1)'"
+                                onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'">
+                            <option value="efectivo">💵 Efectivo</option>
+                            <option value="yape">📱 Yape</option>
+                            <option value="fiado">📝 Fiado</option>
+                        </select>
+                    </div>
+
+                    <!-- Productos -->
+                    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 12px; border: 2px solid #fcd34d;">
+                        <h3 style="margin: 0 0 20px 0; color: #78350f; font-size: 16px; font-weight: 800;">📦 Productos de la Venta</h3>
+                        
+                        <div id="editSaleLines">
+                            <!-- Las líneas se agregarán dinámicamente -->
+                        </div>
+
+                        <button class="button secondary" type="button" onclick="addEditSaleLine()" style="width: 100%; margin-top: 12px; font-weight: 600; background: white; border: 2px solid #fcd34d; color: #92400e;"
+                                onmouseover="this.style.background='#fef3c7'; this.style.borderColor='#f59e0b'"
+                                onmouseout="this.style.background='white'; this.style.borderColor='#fcd34d'">➕ Agregar Otro Producto</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div style="padding: 24px 32px; background: #f9fafb; border-top: 2px solid #e5e7eb; display: flex; gap: 12px;">
+            <button type="button" onclick="closeEditSaleModal()" class="button secondary" style="flex: 1; font-weight: 600; padding: 14px;">Cancelar</button>
+            <button type="submit" form="editSaleForm" class="button" style="flex: 2; font-weight: 700; padding: 14px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">💾 Actualizar Venta</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditSaleModal(saleId, saleData) {
+    document.getElementById('editSaleId').value = saleId;
+    document.getElementById('editSaleCustomerName').value = saleData.customer_name || '';
+    document.getElementById('editPaymentMethod').value = saleData.payment_method || 'efectivo';
+    
+    // Actualizar la acción del formulario
+    document.getElementById('editSaleForm').action = '/sales/' + saleId + '/edit';
+    
+    // Limpiar líneas existentes
+    const linesContainer = document.getElementById('editSaleLines');
+    linesContainer.innerHTML = '';
+    
+    // Agregar líneas de productos existentes
+    if (saleData.items && saleData.items.length > 0) {
+        saleData.items.forEach(item => {
+            const lineHtml = createEditSaleLine(item.product.id, item.product.name, item.qty);
+            linesContainer.insertAdjacentHTML('beforeend', lineHtml);
+        });
+    } else {
+        // Si no hay items, agregar una línea vacía
+        const lineHtml = createEditSaleLine('', '', 1);
+        linesContainer.insertAdjacentHTML('beforeend', lineHtml);
+    }
+    
+    setupEditProductSearch();
+    updateEditSaleRemoveButtons();
+    
+    document.getElementById('editSaleModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+// Event listener para botones de editar ventas
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.edit-sale-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const saleData = JSON.parse(this.dataset.saleData);
+            openEditSaleModal(this.dataset.saleId, saleData);
+        });
+    });
+});
+
+function closeEditSaleModal() {
+    document.getElementById('editSaleModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    document.getElementById('editSaleForm').reset();
+}
+
+function createEditSaleLine(productId, productName, qty) {
+    return `
+        <div class="edit-sale-line-item" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 16px; margin-bottom: 16px; padding: 18px; background: white; border-radius: 10px; border: 2px solid #fcd34d; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div>
+                <label style="display: block; font-weight: 600; color: #78350f; margin-bottom: 6px; font-size: 13px;">🏪 Producto</label>
+                <div class="edit-product-search-container" style="position: relative;">
+                    <input type="text" class="edit-product-search-input" placeholder="Buscar producto..." autocomplete="off" value="${productName}"
+                           style="width: 100%; padding: 10px 14px; border: 2px solid #fcd34d; border-radius: 8px; font-size: 14px; transition: all 0.2s; box-sizing: border-box;"
+                           onfocus="this.style.borderColor='#f59e0b'; this.style.boxShadow='0 0 0 3px rgba(245, 158, 11, 0.1)'"
+                           onblur="this.style.borderColor='#fcd34d'; this.style.boxShadow='none'">
+                    <input type="hidden" name="product_id" value="${productId}">
+                    <div class="edit-product-suggestions" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #fcd34d; border-radius: 8px; max-height: 250px; overflow-y: auto; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); z-index: 1000; display: none; margin-top: 4px;"></div>
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; font-weight: 600; color: #78350f; margin-bottom: 6px; font-size: 13px;">📊 Cantidad</label>
+                <input type="number" name="qty" min="1" value="${qty}"
+                       style="width: 100%; padding: 10px 14px; border: 2px solid #fcd34d; border-radius: 8px; font-size: 14px; transition: all 0.2s; box-sizing: border-box;"
+                       onfocus="this.style.borderColor='#f59e0b'; this.style.boxShadow='0 0 0 3px rgba(245, 158, 11, 0.1)'"
+                       onblur="this.style.borderColor='#fcd34d'; this.style.boxShadow='none'">
+            </div>
+
+            <div style="display: flex; align-items: flex-end;">
+                <button type="button" class="edit-sale-remove-line" onclick="removeEditSaleLine(this)" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);" title="Eliminar producto"
+                        onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 8px rgba(239, 68, 68, 0.4)'"
+                        onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 4px rgba(239, 68, 68, 0.3)'">🗑️</button>
+            </div>
+        </div>
+    `;
+}
+
+function showEditSuggestions(input) {
+    const container = input.closest('.edit-product-search-container');
+    const suggestionsDiv = container.querySelector('.edit-product-suggestions');
+    const searchTerm = input.value.toLowerCase().trim();
+    
+    suggestionsDiv.innerHTML = '';
+    
+    if (searchTerm.length === 0) {
+        suggestionsDiv.style.display = 'none';
+        return;
+    }
+    
+    const filtered = productsForSale.filter(p => 
+        p.name.toLowerCase().includes(searchTerm)
+    ).slice(0, 8);
+    
+    if (filtered.length === 0) {
+        suggestionsDiv.innerHTML = '<div class="no-results">⚠️ No se encontraron productos</div>';
+        suggestionsDiv.style.display = 'block';
+        return;
+    }
+    
+    filtered.forEach(product => {
+        const item = document.createElement('div');
+        item.className = 'product-suggestion-item';
+        item.innerHTML = `
+            <div class="product-suggestion-name">${product.name}</div>
+            <div class="product-suggestion-stock">📦 Stock disponible: ${product.stock}</div>
+        `;
+        item.onclick = function() {
+            selectEditProduct(container, product);
+        };
+        suggestionsDiv.appendChild(item);
+    });
+    
+    suggestionsDiv.style.display = 'block';
+}
+
+function selectEditProduct(container, product) {
+    const input = container.querySelector('.edit-product-search-input');
+    const hiddenInput = container.querySelector('input[name="product_id"]');
+    const suggestionsDiv = container.querySelector('.edit-product-suggestions');
+    
+    input.value = product.name;
+    hiddenInput.value = product.id;
+    suggestionsDiv.style.display = 'none';
+}
+
+function setupEditProductSearch() {
+    document.querySelectorAll('.edit-product-search-input').forEach(input => {
+        // Clonar el nodo para eliminar event listeners previos
+        const newInput = input.cloneNode(true);
+        input.parentNode.replaceChild(newInput, input);
+        
+        newInput.addEventListener('input', function() {
+            showEditSuggestions(this);
+        });
+        
+        newInput.addEventListener('focus', function() {
+            if (this.value.trim().length > 0) {
+                showEditSuggestions(this);
+            }
+        });
+        
+        newInput.addEventListener('input', function() {
+            if (this.value.trim().length === 0) {
+                const hiddenInput = this.closest('.edit-product-search-container').querySelector('input[name="product_id"]');
+                hiddenInput.value = '';
+            }
+        });
+    });
+}
+
+function addEditSaleLine() {
+    const lines = document.getElementById('editSaleLines');
+    const lineHtml = createEditSaleLine('', '', 1);
+    lines.insertAdjacentHTML('beforeend', lineHtml);
+    setupEditProductSearch();
+    updateEditSaleRemoveButtons();
+}
+
+function removeEditSaleLine(button) {
+    const lines = document.getElementById('editSaleLines');
+    const lineItems = lines.querySelectorAll('.edit-sale-line-item');
+    
+    if (lineItems.length > 1) {
+        button.closest('.edit-sale-line-item').remove();
+        updateEditSaleRemoveButtons();
+    } else {
+        alert('⚠️ Debe haber al menos un producto en la venta');
+    }
+}
+
+function updateEditSaleRemoveButtons() {
+    const lines = document.getElementById('editSaleLines');
+    const lineItems = lines.querySelectorAll('.edit-sale-line-item');
+    const removeButtons = lines.querySelectorAll('.edit-sale-remove-line');
+    
+    if (lineItems.length === 1) {
+        removeButtons.forEach(function(btn) {
+            btn.style.opacity = '0.3';
+            btn.style.cursor = 'not-allowed';
+            btn.disabled = true;
+        });
+    } else {
+        removeButtons.forEach(function(btn) {
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.disabled = false;
+        });
+    }
+}
 </script>
 {% endblock %}
