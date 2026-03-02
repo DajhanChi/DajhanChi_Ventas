@@ -318,7 +318,7 @@
             </form>
         </div>
     </div>
-    <button type="button" class="button" onclick="window.location.href='{{ url_for('sale_new') }}'">➕ Nueva Venta</button>
+    <button type="button" class="button" data-href="{{ url_for('sale_new') }}" onclick="window.location.href=this.getAttribute('data-href')">➕ Nueva Venta</button>
 </div>
 
 <div class="card" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
@@ -367,8 +367,8 @@
                     <td style="text-align: right; color: #059669; font-weight: 700; vertical-align: middle; font-size: 15px;">{{ sale.total_cents | money }}</td>
                     <td style="text-align: center; vertical-align: middle;">
                         <div class="action-buttons">
-                            <button type="button" class="action-btn edit" title="Editar" onclick="window.location.href='{{ url_for('sale_edit', sale_id=sale.id) }}'">✏️</button>
-                            <button type="button" class="action-btn delete" title="Eliminar" onclick="openDeleteConfirm('{{ sale.id }}', '{{ sale.customer_name }}', '{{ url_for('sale_delete', sale_id=sale.id) }}' )">🗑️</button>
+                            <button type="button" class="action-btn edit" title="Editar" data-href="{{ url_for('sale_edit', sale_id=sale.id) }}" onclick="window.location.href=this.getAttribute('data-href')">✏️</button>
+                            <button type="button" class="action-btn delete" title="Eliminar" data-id="{{ sale.id }}" data-name="{{ sale.customer_name }}" data-url="{{ url_for('sale_delete', sale_id=sale.id) }}" onclick="openDeleteConfirm(this.dataset.id, this.dataset.name, this.dataset.url)">🗑️</button>
                         </div>
                     </td>
                 </tr>
@@ -381,7 +381,7 @@
         <p style="font-size: 48px; margin: 0;">📭</p>
         <h3 style="margin: 16px 0 8px 0;">No hay ventas registradas</h3>
         <p style="color: #6b7280; margin: 0 0 20px 0;">Inicia tu primer registro de venta</p>
-        <button type="button" class="button" onclick="window.location.href='{{ url_for('sale_new') }}'">➕ Registrar Venta</button>
+        <button type="button" class="button" data-href="{{ url_for('sale_new') }}" onclick="window.location.href=this.getAttribute('data-href')">➕ Registrar Venta</button>
     </div>
     {% endif %}
 </div>

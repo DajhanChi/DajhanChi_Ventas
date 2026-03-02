@@ -47,7 +47,7 @@
         <div class="actions">
             <button type="submit" style="width: 100%;">✅ {{ "Actualizar Usuario" if user else "Crear Usuario" }}</button>
         </div>
-        <button type="button" class="button secondary" style="width: 100%; text-align: center;" onclick="window.location.href='{{ url_for('users') }}'">← Volver</button>
+        <button type="button" class="button secondary" style="width: 100%; text-align: center;" data-href="{{ url_for('users') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver</button>
     </form>
 </div>
 {% endblock %}

@@ -242,7 +242,8 @@
                             <button type="button" 
                                     class="button secondary small" 
                                     style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;"
-                                    onclick="event.stopPropagation(); window.location.href='{{ url_for('debt_customer_receipt', customer=customer.customer_key) }}';">
+                                    data-href="{{ url_for('debt_customer_receipt', customer=customer.customer_key) }}"
+                                    onclick="event.stopPropagation(); window.location.href=this.getAttribute('data-href')">
                                 🧾 Boleta
                             </button>
                         </td>

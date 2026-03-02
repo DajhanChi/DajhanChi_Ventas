@@ -205,8 +205,8 @@
 
 <div class="receipt-wrapper">
     <div class="actions-bar">
-        <button type="button" class="button secondary" onclick="window.location.href='{{ url_for('debts') }}'">← Volver a deudas</button>
-        <button type="button" class="button success" onclick="window.location.href='{{ url_for('customer_payment_register', customer=customer_key) }}'">💳 Registrar pago</button>
+        <button type="button" class="button secondary" data-href="{{ url_for('debts') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver a deudas</button>
+        <button type="button" class="button success" data-href="{{ url_for('customer_payment_register', customer=customer_key) }}" onclick="window.location.href=this.getAttribute('data-href')">💳 Registrar pago</button>
         <button type="button" class="button" onclick="window.print()">🖨️ Imprimir / PDF</button>
         <button type="button" class="button" onclick="downloadAsImage()">📸 Descargar Foto</button>
     </div>

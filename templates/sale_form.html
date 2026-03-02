@@ -159,7 +159,7 @@
                 {% if sale %}💾 Actualizar Venta{% else %}✅ Registrar Venta{% endif %}
             </button>
         </div>
-        <button type="button" class="button secondary" style="width: 100%; text-align: center;" onclick="window.location.href='{{ url_for('sales') }}'">← Volver</button>
+        <button type="button" class="button secondary" style="width: 100%; text-align: center;" data-href="{{ url_for('sales') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver</button>
     </form>
 </div>
 

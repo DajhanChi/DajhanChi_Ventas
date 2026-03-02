@@ -128,7 +128,7 @@
     <div>
         <h1>📦 Catálogo de Productos</h1>
     </div>
-    <button type="button" class="button" onclick="window.location.href='{{ url_for('product_new') }}'">➕ Nuevo Producto</button>
+    <button type="button" class="button" data-href="{{ url_for('product_new') }}" onclick="window.location.href=this.getAttribute('data-href')">➕ Nuevo Producto</button>
 </div>
 
 <!-- Buscador de productos -->
@@ -187,8 +187,8 @@
                 </td>
                 <td style="text-align: center; vertical-align: middle;">
                     <div class="action-buttons">
-                        <button type="button" class="action-btn edit" title="Editar" onclick="window.location.href='{{ url_for('product_edit', product_id=product.id) }}'">✏️</button>
-                        <button type="button" class="action-btn delete" title="Eliminar" onclick="openDeleteConfirm('{{ product.id }}', '{{ product.name }}', '{{ url_for('product_delete', product_id=product.id) }}')">🗑️</button>
+                        <button type="button" class="action-btn edit" title="Editar" data-href="{{ url_for('product_edit', product_id=product.id) }}" onclick="window.location.href=this.getAttribute('data-href')">✏️</button>
+                        <button type="button" class="action-btn delete" title="Eliminar" data-id="{{ product.id }}" data-name="{{ product.name }}" data-url="{{ url_for('product_delete', product_id=product.id) }}" onclick="openDeleteConfirm(this.dataset.id, this.dataset.name, this.dataset.url)">🗑️</button>
                     </div>
                 </td>
             </tr>
@@ -201,7 +201,7 @@
         <p style="font-size: 48px; margin: 0;">📭</p>
         <h3 style="margin: 16px 0 8px 0;">No hay productos aún</h3>
         <p style="color: #6b7280; margin: 0 0 20px 0;">Comienza creando tu primer producto</p>
-        <button type="button" class="button" onclick="window.location.href='{{ url_for('product_new') }}'">➕ Crear Producto</button>
+        <button type="button" class="button" data-href="{{ url_for('product_new') }}" onclick="window.location.href=this.getAttribute('data-href')">➕ Crear Producto</button>
     </div>
     {% endif %}
 </div>

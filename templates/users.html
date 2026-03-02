@@ -207,7 +207,7 @@
         <h1>👥 Gestión de Usuarios</h1>
         <p style="color: #6b7280; margin: 4px 0 0 0;">Administra los usuarios del sistema de manera segura</p>
     </div>
-    <button type="button" class="button" onclick="window.location.href='{{ url_for('user_new') }}'" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 700; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">➕ Nuevo Usuario</button>
+    <button type="button" class="button" data-href="{{ url_for('user_new') }}" onclick="window.location.href=this.getAttribute('data-href')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 700; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">➕ Nuevo Usuario</button>
 </div>
 
 <div class="card" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
@@ -243,13 +243,13 @@
                     </td>
                     <td style="text-align: right;">
                         <div class="action-buttons">
-                            <button type="button" class="action-btn edit" onclick="window.location.href='{{ url_for('user_edit', user_id=user.id) }}'">✏️ Editar</button>
-                            <button type="button" class="action-btn password" onclick="window.location.href='{{ url_for('user_change_password', user_id=user.id) }}'">🔐 Clave</button>
+                            <button type="button" class="action-btn edit" data-href="{{ url_for('user_edit', user_id=user.id) }}" onclick="window.location.href=this.getAttribute('data-href')">✏️ Editar</button>
+                            <button type="button" class="action-btn password" data-href="{{ url_for('user_change_password', user_id=user.id) }}" onclick="window.location.href=this.getAttribute('data-href')">🔐 Clave</button>
                             {% if user.id != session.get('user_id') %}
                                 {% if user.username == 'dajhanchi' %}
-                                    <button type="button" class="action-btn delete" onclick="openProtectedDeleteConfirm('{{ user.id }}', '{{ user.username }}', '{{ url_for('user_delete', user_id=user.id) }}')">🗑️ Eliminar</button>
+                                    <button type="button" class="action-btn delete" data-id="{{ user.id }}" data-name="{{ user.username }}" data-url="{{ url_for('user_delete', user_id=user.id) }}" onclick="openProtectedDeleteConfirm(this.dataset.id, this.dataset.name, this.dataset.url)">🗑️ Eliminar</button>
                                 {% else %}
-                                    <button type="button" class="action-btn delete" onclick="openDeleteConfirm('{{ user.id }}', '{{ user.username }}', '{{ url_for('user_delete', user_id=user.id) }}')">🗑️ Eliminar</button>
+                                    <button type="button" class="action-btn delete" data-id="{{ user.id }}" data-name="{{ user.username }}" data-url="{{ url_for('user_delete', user_id=user.id) }}" onclick="openDeleteConfirm(this.dataset.id, this.dataset.name, this.dataset.url)">🗑️ Eliminar</button>
                                 {% endif %}
                             {% else %}
                                 <span class="user-own-account">👤 Tu cuenta</span>
@@ -266,7 +266,7 @@
         <p style="font-size: 48px; margin: 0;">👥</p>
         <h3 style="margin: 16px 0 8px 0; color: #1f2937;">No hay usuarios registrados</h3>
         <p style="color: #6b7280; margin: 0 0 20px 0;">Crea el primer usuario del sistema</p>
-        <button type="button" class="button" onclick="window.location.href='{{ url_for('user_new') }}'" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 700;">➕ Crear Usuario</button>
+        <button type="button" class="button" data-href="{{ url_for('user_new') }}" onclick="window.location.href=this.getAttribute('data-href')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-weight: 700;">➕ Crear Usuario</button>
     </div>
     {% endif %}
 </div>

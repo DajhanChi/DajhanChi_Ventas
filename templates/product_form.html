@@ -39,7 +39,7 @@
         <div class="actions">
             <button type="submit" style="width: 100%;">✅ {{ "Actualizar Producto" if product else "Crear Producto" }}</button>
         </div>
-        <button type="button" class="button secondary" style="width: 100%; text-align: center;" onclick="window.location.href='{{ url_for('products') }}'">← Volver</button>
+        <button type="button" class="button secondary" style="width: 100%; text-align: center;" data-href="{{ url_for('products') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver</button>
     </form>
 </div>
 
