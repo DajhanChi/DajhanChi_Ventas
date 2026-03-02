@@ -90,12 +90,14 @@ body {
     background: rgba(255, 255, 255, 0.1);
     color: white;
     padding-left: 16px;
+    text-decoration: none;
 }
 
 .nav-item[data-active="true"] {
     background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
     color: white;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    text-decoration: none;
 }
 
 .nav-item span:first-child {
@@ -132,6 +134,7 @@ body {
 .logout-btn:hover {
     background: rgba(239, 68, 68, 0.2);
     color: #fecaca;
+    text-decoration: none;
 }
 
 /* Main Content */

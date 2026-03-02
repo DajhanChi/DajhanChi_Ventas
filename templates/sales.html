@@ -250,7 +250,7 @@
 }
 
 .sales-table td {
-    padding: 16px;
+    padding: 20px 16px;
     word-wrap: break-word;
     overflow: hidden;
 }
@@ -300,26 +300,24 @@
 <div class="page-head">
     <div>
         <h1>💰 Registro de Ventas</h1>
-        <div style="margin-top: 16px;">
-            <form method="get" action="{{ url_for('sales') }}" class="search-container">
-                <div class="search-input-wrapper">
-                    <input type="text" id="salesSearch" name="q" value="{{ search_q or '' }}" placeholder="Buscar por nombre de cliente..." autocomplete="off">
-                </div>
-                <button type="submit" class="search-button">
-                    <span>🔍</span>
-                    <span>Buscar</span>
-                </button>
-                {% if search_q %}
-                <a href="{{ url_for('sales') }}" class="clear-button">
-                    <span>✕</span>
-                    <span>Limpiar</span>
-                </a>
-                {% endif %}
-            </form>
-        </div>
     </div>
     <button type="button" class="button" data-href="{{ url_for('sale_new') }}" onclick="window.location.href=this.getAttribute('data-href')">➕ Nueva Venta</button>
 </div>
+
+<!-- Buscador de ventas -->
+{% if sales %}
+<div style="background: white; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <div style="flex: 1; position: relative;">
+            <input type="text" id="salesSearchInput" placeholder="🔍 Buscar por nombre de cliente..." 
+                   style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; transition: border-color 0.2s; box-sizing: border-box;">
+        </div>
+        <div id="salesSearchResults" style="color: #6b7280; font-size: 14px; white-space: nowrap;">
+            <span id="totalSales">{{ sales|length }}</span> ventas
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="card" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;">
     {% if sales %}
@@ -327,48 +325,78 @@
         <table class="sales-table">
             <thead>
                 <tr>
-                    <th style="text-align: center; width: 30px;">📌</th>
-                    <th style="text-align: left;">Fecha</th>
-                    <th style="text-align: left;">Cliente</th>
-                    <th style="text-align: center;">Método</th>
-                    <th style="text-align: center;">Estado Pago</th>
-                    <th style="text-align: right;">Total</th>
-                    <th style="text-align: center;">Acción</th>
+                    <th style="text-align: center; width: 4%;"></th>
+                    <th style="text-align: left; width: 14%;">📅 Fecha</th>
+                    <th style="text-align: left; width: 20%;">👤 Cliente</th>
+                    <th style="text-align: center; width: 15%;">💳 Método</th>
+                    <th style="text-align: center; width: 15%;">📊 Estado</th>
+                    <th style="text-align: right; width: 14%;">💰 Total</th>
+                    <th style="text-align: center; width: 18%;">⚡ Acciones</th>
                 </tr>
             </thead>
             <tbody>
             {% for sale in sales %}
                 <tr style="cursor: pointer;" data-sale-id="{{ sale.id }}" data-customer="{{ sale.customer_name or 'anonimo' }}" class="sale-row">
                     <td style="text-align: center; vertical-align: middle;">
-                        <span id="icon_{{ sale.id }}" style="color: #9ca3af; font-size: 11px; transition: color 0.2s ease;">▶</span>
+                        <span id="icon_{{ sale.id }}" style="color: #3b82f6; font-size: 14px; transition: all 0.2s ease;">▶</span>
                     </td>
-                    <td style="vertical-align: middle; color: #6b7280; font-size: 13px;">{{ sale.created_at.strftime("%d/%m/%Y %H:%M") }}</td>
-                    <td style="font-weight: 600; vertical-align: middle; color: #1f2937;">{{ sale.customer_name or "Anónimo" }}</td>
+                    <td style="vertical-align: middle;">
+                        <div style="font-weight: 600; color: #1f2937; font-size: 14px;">{{ sale.created_at.strftime("%d/%m/%Y") }}</div>
+                        <div style="font-size: 11px; color: #9ca3af;">{{ sale.created_at.strftime("%H:%M") }}</div>
+                    </td>
+                    <td style="vertical-align: middle;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
+                                {{ (sale.customer_name or "A")[0]|upper }}
+                            </div>
+                            <div>
+                                <div style="font-weight: 700; color: #1f2937; font-size: 14px;">{{ sale.customer_name or "Anónimo" }}</div>
+                                <div style="font-size: 11px; color: #6b7280;">Cliente</div>
+                            </div>
+                        </div>
+                    </td>
                     <td style="text-align: center; vertical-align: middle;">
                         {% if sale.payment_method == 'efectivo' or not sale.payment_method %}
-                            <span class="badge badge-success">💵 Efectivo</span>
+                            <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; font-size: 13px;">💵 Efectivo</span>
                         {% elif sale.payment_method == 'yape' %}
-                            <span class="badge badge-info">📱 Yape</span>
+                            <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; font-size: 13px;">📱 Yape</span>
                         {% elif sale.payment_method == 'fiado' %}
-                            <span class="badge badge-warning">📝 Fiado</span>
+                            <span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; font-size: 13px;">📝 Fiado</span>
                         {% else %}
-                            <span class="badge badge-success">💵 {{ sale.payment_method }}</span>
+                            <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; font-size: 13px;">💵 {{ sale.payment_method }}</span>
                         {% endif %}
                     </td>
                     <td style="text-align: center; vertical-align: middle;">
                         {% if sale.payment_status == 'pagado' %}
-                            <span class="badge badge-success">✅ Pagado</span>
+                            <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; font-size: 13px;">✅ Pagado</span>
                         {% elif sale.payment_status == 'pendiente' %}
-                            <span class="badge badge-danger">⏳ Pendiente</span>
+                            <span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; font-size: 13px;">⏳ Pendiente</span>
                         {% elif sale.payment_status == 'parcial' %}
-                            <span class="badge badge-info">💵 Parcial</span>
+                            <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; font-size: 13px;">💵 Parcial</span>
                         {% endif %}
                     </td>
-                    <td style="text-align: right; color: #059669; font-weight: 700; vertical-align: middle; font-size: 15px;">{{ sale.total_cents | money }}</td>
+                    <td style="text-align: right; vertical-align: middle;">
+                        <div style="font-weight: 800; color: #059669; font-size: 18px;">{{ sale.total_cents | money }}</div>
+                        <div style="font-size: 10px; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Total venta</div>
+                    </td>
                     <td style="text-align: center; vertical-align: middle;">
-                        <div class="action-buttons">
-                            <button type="button" class="action-btn edit" title="Editar" data-href="{{ url_for('sale_edit', sale_id=sale.id) }}" onclick="window.location.href=this.getAttribute('data-href')">✏️</button>
-                            <button type="button" class="action-btn delete" title="Eliminar" data-id="{{ sale.id }}" data-name="{{ sale.customer_name }}" data-url="{{ url_for('sale_delete', sale_id=sale.id) }}" onclick="openDeleteConfirm(this.dataset.id, this.dataset.name, this.dataset.url)">🗑️</button>
+                        <div style="display: flex; gap: 8px; justify-content: center;">
+                            <button type="button" 
+                                    class="button secondary small" 
+                                    style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px;"
+                                    data-href="{{ url_for('sale_edit', sale_id=sale.id) }}" 
+                                    onclick="window.location.href=this.getAttribute('data-href')">
+                                ✏️ Editar
+                            </button>
+                            <button type="button" 
+                                    class="button secondary small" 
+                                    style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #991b1b; border: 1px solid #fca5a5;"
+                                    data-id="{{ sale.id }}" 
+                                    data-name="{{ sale.customer_name }}" 
+                                    data-url="{{ url_for('sale_delete', sale_id=sale.id) }}" 
+                                    onclick="openDeleteConfirm(this.dataset.id, this.dataset.name, this.dataset.url)">
+                                🗑️
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -573,14 +601,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const searchInput = document.getElementById('salesSearch');
+    const searchInput = document.getElementById('salesSearchInput');
+    const totalSales = document.getElementById('totalSales');
     const applyFilter = function() {
         const query = (searchInput.value || '').trim().toLowerCase();
+        let visibleCount = 0;
         rows.forEach(function(row) {
             const customer = (row.getAttribute('data-customer') || '').toLowerCase();
             const match = !query || customer.includes(query);
             row.style.display = match ? '' : 'none';
+            if (match) visibleCount++;
         });
+        if (totalSales) {
+            totalSales.textContent = visibleCount;
+        }
     };
 
     if (searchInput) {
