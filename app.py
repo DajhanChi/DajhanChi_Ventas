@@ -23,8 +23,8 @@ app = Flask(__name__)
 Compress(app)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-in-production")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["COMPRESS_LEVEL"] = 6
-app.config["COMPRESS_MIN_SIZE"] = 500
+app.config["COMPRESS_LEVEL"] = 4
+app.config["COMPRESS_MIN_SIZE"] = 1000
 
 # Configuración de protección de usuario (usar variables de entorno en producción)
 PROTECTED_USERNAME = os.getenv("PROTECTED_USERNAME", "dajhanchi")
@@ -1318,4 +1318,4 @@ def user_change_password(user_id):
 if __name__ == "__main__":
     ensure_recent_backup()
     start_backup_scheduler()
-    app.run(host='0.0.0.0', debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True, use_reloader=False)

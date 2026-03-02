@@ -36,12 +36,15 @@
     margin: 0;
     font-size: 28px;
     letter-spacing: -0.4px;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .receipt-brand p {
     margin: 0;
     color: rgba(255, 255, 255, 0.82);
     font-size: 13px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .receipt-badge {
@@ -51,6 +54,7 @@
     padding: 10px 14px;
     font-weight: 700;
     font-size: 13px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .receipt-body {
@@ -106,12 +110,14 @@
     text-transform: uppercase;
     letter-spacing: 0.6px;
     opacity: 0.95;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .kpi p {
     margin: 8px 0 0 0;
     font-size: 28px;
     font-weight: 800;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .kpi.original { background: linear-gradient(135deg, #334155 0%, #1f2937 100%); }
@@ -181,6 +187,29 @@
 .status-chip.pendiente { background: #fef3c7; color: #92400e; }
 .status-chip.parcial { background: #dbeafe; color: #1e40af; }
 
+/* Modo compacto para muchas ventas/pagos */
+body.compact-print .receipt-table td,
+body.compact-print .receipt-table th {
+    padding: 6px 8px;
+    font-size: 10px;
+}
+
+body.compact-print .receipt-header h1 {
+    font-size: 22px;
+}
+
+body.compact-print .meta-value {
+    font-size: 14px;
+}
+
+body.compact-print .kpi p {
+    font-size: 20px;
+}
+
+body.compact-print .receipt-body {
+    padding: 16px;
+}
+
 @media print {
     .sidebar,
     .actions-bar,
@@ -198,7 +227,186 @@
 
     .receipt-card {
         box-shadow: none;
-        border-color: #d1d5db;
+        border: 2px solid #000;
+        page-break-inside: avoid;
+    }
+
+    /* Header en blanco y negro */
+    .receipt-header {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border-bottom: 3px solid #000;
+        page-break-after: avoid;
+    }
+
+    .receipt-header h1,
+    .receipt-header p {
+        color: #000000 !important;
+    }
+
+    .receipt-badge {
+        background: #ffffff !important;
+        border: 2px solid #000 !important;
+        color: #000000 !important;
+    }
+
+    /* Meta boxes en blanco y negro */
+    .meta-box {
+        background: #ffffff !important;
+        border: 1px solid #000 !important;
+    }
+
+    .meta-label {
+        color: #000000 !important;
+    }
+
+    .meta-value {
+        color: #000000 !important;
+        font-size: 16px;
+    }
+
+    /* KPIs en blanco y negro con bordes */
+    .kpi {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: 2px solid #000 !important;
+    }
+
+    .kpi h3,
+    .kpi p {
+        color: #000000 !important;
+    }
+
+    .kpi p {
+        font-size: 24px;
+    }
+
+    /* Status chips en blanco y negro */
+    .status-chip {
+        background: #ffffff !important;
+        border: 1px solid #000 !important;
+        color: #000000 !important;
+    }
+
+    /* Secciones en blanco y negro */
+    .receipt-section {
+        border: 1px solid #000 !important;
+        page-break-inside: avoid;
+        margin-bottom: 12px;
+    }
+
+    .receipt-section h2 {
+        background: #f5f5f5 !important;
+        color: #000000 !important;
+        border-bottom: 1px solid #000 !important;
+        page-break-after: avoid;
+    }
+
+    /* Tablas en blanco y negro */
+    .receipt-table {
+        page-break-inside: auto;
+    }
+
+    .receipt-table thead {
+        display: table-header-group;
+        background: #f5f5f5 !important;
+    }
+
+    .receipt-table th {
+        background: #f5f5f5 !important;
+        color: #000000 !important;
+        border-bottom: 2px solid #000 !important;
+    }
+
+    .receipt-table tbody {
+        page-break-inside: auto;
+    }
+
+    .receipt-table tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    .receipt-table td,
+    .receipt-table th {
+        padding: 8px 10px;
+        font-size: 11px;
+        color: #000000 !important;
+        border-bottom: 1px solid #ccc !important;
+    }
+
+    .receipt-table td strong {
+        color: #000000 !important;
+    }
+
+    .receipt-meta,
+    .receipt-kpis {
+        page-break-inside: avoid;
+        page-break-after: avoid;
+    }
+
+    /* Reducir espaciado para mejor aprovechamiento */
+    .receipt-body {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .receipt-header {
+        padding: 20px;
+    }
+
+    /* Modo compacto en impresión */
+    body.compact-print .receipt-table td,
+    body.compact-print .receipt-table th {
+        padding: 4px 6px !important;
+        font-size: 9px !important;
+        line-height: 1.3;
+        color: #000000 !important;
+    }
+
+    body.compact-print .receipt-header h1 {
+        font-size: 18px !important;
+        color: #000000 !important;
+    }
+
+    body.compact-print .receipt-header p {
+        font-size: 11px !important;
+        color: #000000 !important;
+    }
+
+    body.compact-print .meta-label {
+        font-size: 9px !important;
+        color: #000000 !important;
+    }
+
+    body.compact-print .meta-value {
+        font-size: 13px !important;
+        color: #000000 !important;
+    }
+
+    body.compact-print .kpi h3 {
+        font-size: 10px !important;
+        color: #000000 !important;
+    }
+
+    body.compact-print .kpi p {
+        font-size: 18px !important;
+        color: #000000 !important;
+    }
+
+    body.compact-print .receipt-section h2 {
+        font-size: 12px !important;
+        padding: 10px 12px !important;
+        color: #000000 !important;
+    }
+
+    body.compact-print .receipt-body {
+        padding: 12px !important;
+        gap: 8px !important;
+    }
+
+    body.compact-print .receipt-header {
+        padding: 16px !important;
     }
 }
 </style>
@@ -207,7 +415,7 @@
     <div class="actions-bar">
         <button type="button" class="button secondary" data-href="{{ url_for('debts') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver a deudas</button>
         <button type="button" class="button success" data-href="{{ url_for('customer_payment_register', customer=customer_key) }}" onclick="window.location.href=this.getAttribute('data-href')">💳 Registrar pago</button>
-        <button type="button" class="button" onclick="window.print()">🖨️ Imprimir / PDF</button>
+        <button type="button" class="button" onclick="printCompact()">🖨️ Imprimir / PDF</button>
         <button type="button" class="button" onclick="downloadAsImage()">📸 Descargar Foto</button>
     </div>
 
@@ -342,6 +550,14 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
+function printCompact() {
+    document.body.classList.add('compact-print');
+    window.print();
+    setTimeout(() => {
+        document.body.classList.remove('compact-print');
+    }, 100);
+}
+
 function downloadAsImage() {
     const element = document.querySelector('.receipt-card');
     const button = event.target;
