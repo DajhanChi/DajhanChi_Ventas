@@ -1,11 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
+{# Display flash messages if in modal #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="flash-message {{ category }}" style="margin-bottom: 1rem; padding: 12px; border-radius: 8px; {% if category == 'error' %}background: #fee2e2; color: #991b1b; border-left: 4px solid #dc2626;{% elif category == 'success' %}background: #d1fae5; color: #065f46; border-left: 4px solid #10b981;{% else %}background: #dbeafe; color: #1e40af; border-left: 4px solid #3b82f6;{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
 <div class="page-head">
     <h1>📦 {{ "✏️ Editar Producto" if product else "➕ Nuevo Producto" }}</h1>
 </div>
 
 <div style="max-width: 600px;">
-    <form method="post" class="card">
+    <form method="post" action="{{ url_for('product_edit', product_id=product.id) if product else url_for('product_new') }}" class="card">
         <label for="name">📝 Nombre del Producto <span style="color: #ef4444;">*</span></label>
         <input id="name" name="name" type="text" placeholder="Ej: Laptop HP 15 Pulgadas" required value="{{ product.name if product else '' }}">
 
@@ -39,7 +50,11 @@
         <div class="actions">
             <button type="submit" style="width: 100%;">✅ {{ "Actualizar Producto" if product else "Crear Producto" }}</button>
         </div>
+        {% if is_ajax %}
+        <button type="button" class="button secondary" style="width: 100%; text-align: center;" onclick="if (typeof closeProductModal === 'function') { closeProductModal(); } else { window.location.href='{{ url_for('products') }}'; }">← Volver</button>
+        {% else %}
         <button type="button" class="button secondary" style="width: 100%; text-align: center;" data-href="{{ url_for('products') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver</button>
+        {% endif %}
     </form>
 </div>
 
@@ -54,6 +69,7 @@ function calcularCostoUnitario() {
 }
 
 // Calcular al cargar la página
+calcularCostoUnitario();
 document.addEventListener('DOMContentLoaded', calcularCostoUnitario);
 </script>
 {% endblock %}

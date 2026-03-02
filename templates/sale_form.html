@@ -78,12 +78,23 @@
 }
 </style>
 
+{# Display flash messages if in modal #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="flash-message {{ category }}" style="margin-bottom: 1rem; padding: 12px; border-radius: 8px; {% if category == 'error' %}background: #fee2e2; color: #991b1b; border-left: 4px solid #dc2626;{% elif category == 'success' %}background: #d1fae5; color: #065f46; border-left: 4px solid #10b981;{% else %}background: #dbeafe; color: #1e40af; border-left: 4px solid #3b82f6;{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
 <div class="page-head">
     <h1>💰 {% if sale %}✏️ Editar Venta{% else %}➕ Registrar Nueva Venta{% endif %}</h1>
 </div>
 
 <div style="max-width: 700px;">
-    <form method="post" class="card">
+    <form method="post" action="{{ url_for('sale_edit', sale_id=sale.id) if sale else url_for('sale_new') }}" class="card">
         <label for="customer_name">👤 Nombre del Cliente (Opcional)</label>
         <input id="customer_name" name="customer_name" type="text" placeholder="Ej: Juan Pérez" value="{{ customer_name }}">
 
@@ -159,7 +170,11 @@
                 {% if sale %}💾 Actualizar Venta{% else %}✅ Registrar Venta{% endif %}
             </button>
         </div>
+        {% if is_ajax %}
+        <button type="button" class="button secondary" style="width: 100%; text-align: center;" onclick="if (typeof closeSaleModal === 'function') { closeSaleModal(); } else { window.location.href='{{ url_for('sales') }}'; }">← Volver</button>
+        {% else %}
         <button type="button" class="button secondary" style="width: 100%; text-align: center;" data-href="{{ url_for('sales') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver</button>
+        {% endif %}
     </form>
 </div>
 
@@ -310,10 +325,13 @@ function updateRemoveButtons() {
     }
 }
 
-// Inicializar al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
+function initSaleForm() {
     setupProductSearch();
     updateRemoveButtons();
-});
+}
+
+// Inicializar al cargar la página o al inyectar por AJAX
+initSaleForm();
+document.addEventListener('DOMContentLoaded', initSaleForm);
 </script>
 {% endblock %}

@@ -204,14 +204,14 @@ def inject_user_permissions():
             # Log error for debugging but use defaults
             print(f"Error getting user permissions: {e}")
     
-    return {"user_permissions": permissions}
+    return {"user_permissions": permissions, "now": datetime.now}
 
 
 @app.template_filter("money")
 def format_money(cents):
     if cents is None:
-        return "0.00"
-    return f"{cents / 100:.2f}"
+        return "$0.00"
+    return f"${cents / 100:.2f}"
 
 
 def parse_price(value):
@@ -423,9 +423,118 @@ def logout():
 def dashboard():
     user_id = session.get("user_id")
     settings = get_user_settings(user_id)
-    recent_sales = Sale.query.filter_by(user_id=user_id).options(db.joinedload(Sale.items)).order_by(Sale.created_at.desc()).limit(5).all()
-    low_stock = Product.query.filter(Product.user_id == user_id, Product.stock < settings.stock_yellow_threshold).order_by(Product.stock.asc()).limit(10).all()
-    return render_template("dashboard.html", recent_sales=recent_sales, low_stock=low_stock)
+    
+    # Fechas para rangos (usar UTC para coincidir con created_at)
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    week_ago = now - timedelta(days=7)
+    
+    # KPIs del día
+    sales_today = Sale.query.filter(
+        Sale.user_id == user_id,
+        Sale.created_at >= today_start,
+        Sale.created_at < today_start + timedelta(days=1)
+    ).all()
+    total_today = sum((sale.total_cents or 0) for sale in sales_today)
+    count_today = len(sales_today)
+    
+    # KPIs del mes
+    sales_month = Sale.query.filter(
+        Sale.user_id == user_id,
+        Sale.created_at >= month_start
+    ).all()
+    total_month = sum((sale.total_cents or 0) for sale in sales_month)
+    count_month = len(sales_month)
+    
+    # Deudas pendientes (solo ventas fiadas)
+    pending_debts = Sale.query.filter(
+        Sale.user_id == user_id,
+        Sale.payment_method == "fiado",
+        Sale.payment_status.in_(["pendiente", "parcial"])
+    ).all()
+    total_debt = sum((sale.pending_cents or 0) for sale in pending_debts)
+    
+    # Contar clientes únicos con deuda (igual que en la página de deudas)
+    debts_by_customer = {}
+    for sale in pending_debts:
+        customer = sale.customer_name or "Sin nombre"
+        if customer not in debts_by_customer:
+            debts_by_customer[customer] = {'debt': 0}
+        debts_by_customer[customer]['debt'] += sale.pending_cents
+    
+    count_debts = len(debts_by_customer)
+    
+    # Ventas recientes
+    recent_sales = Sale.query.filter_by(user_id=user_id).options(
+        db.joinedload(Sale.items)
+    ).order_by(Sale.created_at.desc()).limit(5).all()
+    
+    # Stock bajo
+    low_stock = Product.query.filter(
+        Product.user_id == user_id,
+        Product.stock < settings.stock_yellow_threshold
+    ).order_by(Product.stock.asc()).limit(10).all()
+    
+    # Productos más vendidos (últimos 30 días)
+    thirty_days_ago = now - timedelta(days=30)
+    try:
+        top_products_query = db.session.query(
+            Product.name,
+            db.func.sum(SaleItem.qty).label('total_sold')
+        ).join(SaleItem, Product.id == SaleItem.product_id
+        ).join(Sale, SaleItem.sale_id == Sale.id
+        ).filter(
+            Sale.user_id == user_id,
+            Product.user_id == user_id,
+            Sale.created_at >= thirty_days_ago
+        ).group_by(Product.id, Product.name
+        ).order_by(db.desc('total_sold')
+        ).limit(5).all()
+    except Exception as e:
+        print(f"Error querying top products: {e}")
+        top_products_query = []
+    
+    # Ventas por día (últimos 7 días)
+    daily_sales = []
+    for i in range(6, -1, -1):
+        day = now - timedelta(days=i)
+        day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        
+        sales_day = Sale.query.filter(
+            Sale.user_id == user_id,
+            Sale.created_at >= day_start,
+            Sale.created_at < day_end
+        ).all()
+        
+        total = sum((sale.total_cents or 0) for sale in sales_day)
+        daily_sales.append({
+            'date': day.strftime('%d/%m'),
+            'total': total / 100.0,
+            'count': len(sales_day)
+        })
+    
+    # Total de productos
+    total_products = Product.query.filter_by(user_id=user_id).count()
+    products = Product.query.filter_by(user_id=user_id).order_by(Product.name.asc()).all()
+    products_data = serialize_products(products)
+    
+    return render_template(
+        "dashboard.html",
+        recent_sales=recent_sales,
+        low_stock=low_stock,
+        total_today=total_today,
+        count_today=count_today,
+        total_month=total_month,
+        count_month=count_month,
+        total_debt=total_debt,
+        count_debts=count_debts,
+        top_products=top_products_query,
+        daily_sales=daily_sales,
+        total_products=total_products,
+        products=products_data
+    )
 
 
 @app.route("/products")
@@ -442,6 +551,8 @@ def products():
 @login_required
 @require_permission("products")
 def product_new():
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     if request.method == "POST":
         user_id = session.get("user_id")
         name = request.form.get("name", "").strip()
@@ -453,12 +564,18 @@ def product_new():
 
         if not name:
             flash("Nombre es requerido", "error")
+            if is_ajax:
+                return render_template("product_form.html", product=None, is_ajax=True), 400
             return render_template("product_form.html", product=None)
         if sku and Product.query.filter_by(user_id=user_id, sku=sku).first():
             flash(f"SKU '{sku}' ya existe. Usa uno diferente.", "error")
+            if is_ajax:
+                return render_template("product_form.html", product=None, is_ajax=True), 400
             return render_template("product_form.html", product=None)
         if package_cost_cents is None:
             flash("Costo de paquete inválido", "error")
+            if is_ajax:
+                return render_template("product_form.html", product=None, is_ajax=True), 400
             return render_template("product_form.html", product=None)
         
         try:
@@ -467,12 +584,16 @@ def product_new():
                 raise ValueError("Debe ser mayor a 0")
         except ValueError:
             flash("Cantidad en paquete inválida", "error")
+            if is_ajax:
+                return render_template("product_form.html", product=None, is_ajax=True), 400
             return render_template("product_form.html", product=None)
         
         cost_cents = package_cost_cents // package_qty_val if package_qty_val > 0 else 0
         
         if price_cents is None:
             flash("Precio inválido", "error")
+            if is_ajax:
+                return render_template("product_form.html", product=None, is_ajax=True), 400
             return render_template("product_form.html", product=None)
         try:
             stock_val = int(stock)
@@ -480,15 +601,20 @@ def product_new():
                 raise ValueError("Stock no puede ser negativo")
         except ValueError:
             flash("Stock inválido", "error")
+            if is_ajax:
+                return render_template("product_form.html", product=None, is_ajax=True), 400
             return render_template("product_form.html", product=None)
 
         product = Product(user_id=user_id, name=name, sku=sku, package_cost_cents=package_cost_cents, package_quantity=package_qty_val, cost_cents=cost_cents, price_cents=price_cents, stock=stock_val)
         db.session.add(product)
         db.session.commit()
         flash("Producto creado", "success")
+        
+        if is_ajax:
+            return jsonify({"success": True, "product_id": product.id}), 200
         return redirect(url_for("products"))
 
-    return render_template("product_form.html", product=None)
+    return render_template("product_form.html", product=None, is_ajax=is_ajax)
 
 
 @app.route("/products/<int:product_id>/edit", methods=["GET", "POST"])
@@ -591,7 +717,7 @@ def sales():
             query = query.filter(Sale.customer_name.ilike(f"%{search_q}%"))
 
     items = (
-        query.order_by(Sale.customer_name.asc(), Sale.created_at.desc())
+        query.order_by(Sale.created_at.desc())
         .limit(100)
         .all()
     )
@@ -639,6 +765,7 @@ def sale_new():
     products = Product.query.filter_by(user_id=user_id).order_by(Product.name.asc()).all()
     products_data = serialize_products(products)
     line_items = []
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if request.method == "POST":
         customer_name = request.form.get("customer_name", "").strip()
@@ -665,6 +792,10 @@ def sale_new():
 
         if not line_items:
             flash("Agrega al menos un producto", "error")
+            if is_ajax:
+                return render_template(
+                    "sale_form.html", products=products_data, line_items=line_items, customer_name=customer_name, payment_method=payment_method, is_ajax=True
+                ), 400
             return render_template(
                 "sale_form.html", products=products_data, line_items=line_items, customer_name=customer_name, payment_method=payment_method
             )
@@ -672,6 +803,10 @@ def sale_new():
         for item in line_items:
             if item["product"].stock < item["qty"]:
                 flash(f"Stock insuficiente para {item['product'].name}", "error")
+                if is_ajax:
+                    return render_template(
+                        "sale_form.html", products=products_data, line_items=line_items, customer_name=customer_name, payment_method=payment_method, is_ajax=True
+                    ), 400
                 return render_template(
                     "sale_form.html", products=products_data, line_items=line_items, customer_name=customer_name, payment_method=payment_method
                 )
@@ -715,9 +850,12 @@ def sale_new():
             sale.paid_cents = total_cents
         db.session.commit()
         flash("Venta registrada", "success")
+        
+        if is_ajax:
+            return jsonify({"success": True, "sale_id": sale.id}), 200
         return redirect(url_for("sales"))
 
-    return render_template("sale_form.html", products=products_data, line_items=line_items, customer_name="", payment_method="efectivo")
+    return render_template("sale_form.html", products=products_data, line_items=line_items, customer_name="", payment_method="efectivo", is_ajax=is_ajax)
 
 
 @app.route("/sales/<int:sale_id>/delete", methods=["POST"])
@@ -1275,10 +1413,11 @@ def payment_register(sale_id):
 @require_permission("reports")
 def reports():
     user_id = session.get("user_id")
-    today_start = datetime.combine(date.today(), datetime.min.time())
+    today = date.today()
+    today_start = datetime.combine(today, datetime.min.time())
     today_end = today_start + timedelta(days=1)
-
-    # Usar índices para hacer queries más rápidas
+    
+    # Ventas hoy
     total_sales_today = (
         db.session.query(db.func.coalesce(db.func.sum(Sale.total_cents), 0))
         .filter(Sale.user_id == user_id, Sale.created_at >= today_start, Sale.created_at < today_end)
@@ -1290,31 +1429,100 @@ def reports():
         .scalar()
     )
 
-    # Calcular dinero invertido en bruto (costo total de inventario)
+    # Ventas esta semana (últimos 7 días)
+    week_start = today_start - timedelta(days=7)
+    total_sales_week = (
+        db.session.query(db.func.coalesce(db.func.sum(Sale.total_cents), 0))
+        .filter(Sale.user_id == user_id, Sale.created_at >= week_start, Sale.created_at < today_end)
+        .scalar()
+    )
+    
+    # Ventas este mes
+    month_start = today.replace(day=1)
+    month_start_dt = datetime.combine(month_start, datetime.min.time())
+    total_sales_month = (
+        db.session.query(db.func.coalesce(db.func.sum(Sale.total_cents), 0))
+        .filter(Sale.user_id == user_id, Sale.created_at >= month_start_dt, Sale.created_at < today_end)
+        .scalar()
+    )
+
+    # Dinero invertido en bruto
     total_invested = (
         db.session.query(db.func.coalesce(db.func.sum(Product.cost_cents * Product.stock), 0))
         .filter(Product.user_id == user_id)
         .scalar()
     )
 
-    # Optimizar query de top productos con LIMIT
+    # Top 10 productos más vendidos (todos los tiempos)
     top_products = (
         db.session.query(Product.name, db.func.sum(SaleItem.qty).label("qty"))
         .join(SaleItem, SaleItem.product_id == Product.id)
+        .join(Sale, Sale.id == SaleItem.sale_id)
         .filter(Product.user_id == user_id)
         .group_by(Product.id, Product.name)
         .order_by(db.desc("qty"))
-        .limit(5)
+        .limit(10)
         .all()
     )
+
+    # Productos con bajo stock (menos de 10 unidades)
+    low_stock_products = (
+        db.session.query(Product.name, Product.stock, Product.cost_cents)
+        .filter(Product.user_id == user_id, Product.stock < 10)
+        .order_by(Product.stock.asc())
+        .limit(10)
+        .all()
+    )
+
+    # Ventas por método de pago (últimos 30 días)
+    thirty_days_ago = today_start - timedelta(days=30)
+    payment_methods = (
+        db.session.query(Sale.payment_method, db.func.count(Sale.id).label("count"), db.func.sum(Sale.total_cents).label("total"))
+        .filter(Sale.user_id == user_id, Sale.created_at >= thirty_days_ago)
+        .group_by(Sale.payment_method)
+        .all()
+    )
+
+    # Últimas 20 ventas
+    recent_sales = (
+        db.session.query(Sale)
+        .filter(Sale.user_id == user_id)
+        .order_by(Sale.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    # Calcular margen de ganancia (hoy)
+    today_profit = (
+        db.session.query(
+            db.func.coalesce(db.func.sum(Sale.total_cents), 0),
+            db.func.coalesce(db.func.sum(SaleItem.qty * Product.cost_cents), 0)
+        )
+        .join(SaleItem, SaleItem.sale_id == Sale.id)
+        .join(Product, Product.id == SaleItem.product_id)
+        .filter(Sale.user_id == user_id, Sale.created_at >= today_start, Sale.created_at < today_end)
+        .first()
+    )
+    today_revenue = today_profit[0] if today_profit[0] else 0
+    today_cost = today_profit[1] if today_profit[1] else 0
+    today_net_profit = today_revenue - today_cost
 
     return render_template(
         "reports.html",
         total_sales_today=total_sales_today,
         total_transactions_today=total_transactions_today,
+        total_sales_week=total_sales_week,
+        total_sales_month=total_sales_month,
         top_products=top_products,
+        low_stock_products=low_stock_products,
         total_invested=total_invested,
+        payment_methods=payment_methods,
+        recent_sales=recent_sales,
+        today_revenue=today_revenue,
+        today_cost=today_cost,
+        today_net_profit=today_net_profit,
     )
+
 
 
 @app.route("/users")
