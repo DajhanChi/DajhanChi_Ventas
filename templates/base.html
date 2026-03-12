@@ -54,6 +54,11 @@
                 <span>📋</span>
                 <span>Reportes</span>
             </a>
+
+            <a href="{{ url_for('reports_debts_matrix') }}" class="nav-item" {% if request.endpoint == 'reports_debts_matrix' %}data-active="true"{% endif %}>
+                <span>🏢</span>
+                <span>Deuda General</span>
+            </a>
             {% endif %}
             
             {% if user_permissions.get('users') %}

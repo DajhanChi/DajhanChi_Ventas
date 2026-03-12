@@ -238,22 +238,22 @@
         <div class="metric-subtitle">Inversión total en stock</div>
     </div>
 
-    <div class="metric-card green animate-card-pop animate-stagger-5">
-        <div class="metric-label">💹 Ganancia Bruta (Hoy)</div>
-        <div class="metric-value">{{ "%.2f"|format(today_revenue / 100) }} $</div>
-        <div class="metric-subtitle">Ingresos totales</div>
+    <div class="metric-card orange animate-card-pop animate-stagger-5">
+        <div class="metric-label">🧾 Costo de Ventas (Hoy)</div>
+        <div class="metric-value">{{ "%.2f"|format(today_cost / 100) }} $</div>
+        <div class="metric-subtitle">Costo de los productos vendidos</div>
     </div>
 
     <div class="metric-card blue animate-card-pop animate-stagger-6">
-        <div class="metric-label">📊 Ganancia Neta (Hoy)</div>
-        <div class="metric-value" style="color: {% if today_net_profit >= 0 %}#10b981{% else %}#ef4444{% endif %};">
-            {{ "%.2f"|format(today_net_profit / 100) }} $
+        <div class="metric-label">💹 Ganancia Bruta (Hoy)</div>
+        <div class="metric-value" style="color: {% if today_gross_profit >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+            {{ "%.2f"|format(today_gross_profit / 100) }} $
         </div>
         <div class="metric-subtitle">
-            {% if today_net_profit >= 0 %}
-                ✅ Margen positivo
+            {% if today_gross_profit >= 0 %}
+                ✅ Ventas menos costo de productos
             {% else %}
-                ⚠️ Margen negativo
+                ⚠️ El costo supera las ventas del día
             {% endif %}
         </div>
     </div>

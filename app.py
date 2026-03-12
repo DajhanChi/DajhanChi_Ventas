@@ -3,13 +3,14 @@ import sqlite3
 import threading
 import time
 import json
+from collections import defaultdict
 from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 
 from dotenv import load_dotenv
 
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_compress import Compress
@@ -74,7 +75,7 @@ class Product(db.Model):
 class Sale(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now, index=True)
     customer_name = db.Column(db.String(160))
     payment_method = db.Column(db.String(20), nullable=False, default="efectivo")  # efectivo, yape, fiado
     total_cents = db.Column(db.Integer, nullable=False, default=0)
@@ -105,7 +106,7 @@ class Payment(db.Model):
     sale_id = db.Column(db.Integer, db.ForeignKey("sale.id"), nullable=False)
     amount_cents = db.Column(db.Integer, nullable=False, default=0)
     payment_method = db.Column(db.String(20), nullable=False, default="efectivo")
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
     notes = db.Column(db.String(255))
     
     sale = db.relationship("Sale", backref=db.backref("payments", lazy=True, cascade="all, delete-orphan"))
@@ -424,8 +425,8 @@ def dashboard():
     user_id = session.get("user_id")
     settings = get_user_settings(user_id)
     
-    # Fechas para rangos (usar UTC para coincidir con created_at)
-    now = datetime.utcnow()
+    # Fechas para rangos (usar datetime.now para coincidir con la zona horaria local)
+    now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     week_ago = now - timedelta(days=7)
@@ -520,7 +521,7 @@ def dashboard():
     products = Product.query.filter_by(user_id=user_id).order_by(Product.name.asc()).all()
     products_data = serialize_products(products)
     
-    return render_template(
+    response = make_response(render_template(
         "dashboard.html",
         recent_sales=recent_sales,
         low_stock=low_stock,
@@ -534,7 +535,12 @@ def dashboard():
         daily_sales=daily_sales,
         total_products=total_products,
         products=products_data
-    )
+    ))
+    # Evita que el navegador reutilice una vista antigua del inicio.
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @app.route("/products")
@@ -552,10 +558,16 @@ def products():
 @require_permission("products")
 def product_new():
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def _new_product_error(message):
+        flash(message, "error")
+        if is_ajax:
+            return jsonify({"success": False, "message": message}), 400
+        return render_template("product_form.html", product=None)
     
     if request.method == "POST":
         user_id = session.get("user_id")
-        name = request.form.get("name", "").strip()
+        name = " ".join(request.form.get("name", "").split())
         sku = request.form.get("sku", "").strip() or None
         package_cost_cents = parse_price(request.form.get("package_cost"))
         package_qty = request.form.get("package_qty", "1").strip()
@@ -563,47 +575,34 @@ def product_new():
         stock = request.form.get("stock", "0").strip()
 
         if not name:
-            flash("Nombre es requerido", "error")
-            if is_ajax:
-                return render_template("product_form.html", product=None, is_ajax=True), 400
-            return render_template("product_form.html", product=None)
+            return _new_product_error("Nombre es requerido")
+        if Product.query.filter(
+            Product.user_id == user_id,
+            db.func.lower(Product.name) == name.lower()
+        ).first():
+            return _new_product_error(f"El producto '{name}' ya existe. Usa un nombre diferente.")
         if sku and Product.query.filter_by(user_id=user_id, sku=sku).first():
-            flash(f"SKU '{sku}' ya existe. Usa uno diferente.", "error")
-            if is_ajax:
-                return render_template("product_form.html", product=None, is_ajax=True), 400
-            return render_template("product_form.html", product=None)
+            return _new_product_error(f"SKU '{sku}' ya existe. Usa uno diferente.")
         if package_cost_cents is None:
-            flash("Costo de paquete inválido", "error")
-            if is_ajax:
-                return render_template("product_form.html", product=None, is_ajax=True), 400
-            return render_template("product_form.html", product=None)
+            return _new_product_error("Costo de paquete inválido")
         
         try:
             package_qty_val = int(package_qty)
             if package_qty_val <= 0:
                 raise ValueError("Debe ser mayor a 0")
         except ValueError:
-            flash("Cantidad en paquete inválida", "error")
-            if is_ajax:
-                return render_template("product_form.html", product=None, is_ajax=True), 400
-            return render_template("product_form.html", product=None)
+            return _new_product_error("Cantidad en paquete inválida")
         
         cost_cents = package_cost_cents // package_qty_val if package_qty_val > 0 else 0
         
         if price_cents is None:
-            flash("Precio inválido", "error")
-            if is_ajax:
-                return render_template("product_form.html", product=None, is_ajax=True), 400
-            return render_template("product_form.html", product=None)
+            return _new_product_error("Precio inválido")
         try:
             stock_val = int(stock)
             if stock_val < 0:
                 raise ValueError("Stock no puede ser negativo")
         except ValueError:
-            flash("Stock inválido", "error")
-            if is_ajax:
-                return render_template("product_form.html", product=None, is_ajax=True), 400
-            return render_template("product_form.html", product=None)
+            return _new_product_error("Stock inválido")
 
         product = Product(user_id=user_id, name=name, sku=sku, package_cost_cents=package_cost_cents, package_quantity=package_qty_val, cost_cents=cost_cents, price_cents=price_cents, stock=stock_val)
         db.session.add(product)
@@ -624,7 +623,7 @@ def product_edit(product_id):
     user_id = session.get("user_id")
     product = Product.query.filter_by(id=product_id, user_id=user_id).first_or_404()
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
+        name = " ".join(request.form.get("name", "").split())
         sku = request.form.get("sku", "").strip() or None
         package_cost_cents = parse_price(request.form.get("package_cost"))
         package_qty = request.form.get("package_qty", "1").strip()
@@ -634,6 +633,13 @@ def product_edit(product_id):
         if not name:
             flash("Nombre es requerido", "error")
             return render_template("product_form.html", product=product)
+        if Product.query.filter(
+            Product.user_id == user_id,
+            Product.id != product_id,
+            db.func.lower(Product.name) == name.lower()
+        ).first():
+            flash(f"El producto '{name}' ya existe. Usa un nombre diferente.", "error")
+            return redirect(url_for("products"))
         if sku and Product.query.filter(Product.sku == sku, Product.id != product_id, Product.user_id == user_id).first():
             flash(f"SKU '{sku}' ya existe en otro producto. Usa uno diferente.", "error")
             return render_template("product_form.html", product=product)
@@ -1413,8 +1419,8 @@ def payment_register(sale_id):
 @require_permission("reports")
 def reports():
     user_id = session.get("user_id")
-    today = date.today()
-    today_start = datetime.combine(today, datetime.min.time())
+    today = datetime.now()
+    today_start = today.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
     
     # Ventas hoy
@@ -1438,11 +1444,10 @@ def reports():
     )
     
     # Ventas este mes
-    month_start = today.replace(day=1)
-    month_start_dt = datetime.combine(month_start, datetime.min.time())
+    month_start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     total_sales_month = (
         db.session.query(db.func.coalesce(db.func.sum(Sale.total_cents), 0))
-        .filter(Sale.user_id == user_id, Sale.created_at >= month_start_dt, Sale.created_at < today_end)
+        .filter(Sale.user_id == user_id, Sale.created_at >= month_start, Sale.created_at < today_end)
         .scalar()
     )
 
@@ -1492,8 +1497,8 @@ def reports():
         .all()
     )
 
-    # Calcular margen de ganancia (hoy)
-    today_profit = (
+    # Calcular ingresos, costo de ventas y ganancia bruta del dia.
+    today_sales_summary = (
         db.session.query(
             db.func.coalesce(db.func.sum(Sale.total_cents), 0),
             db.func.coalesce(db.func.sum(SaleItem.qty * Product.cost_cents), 0)
@@ -1503,9 +1508,8 @@ def reports():
         .filter(Sale.user_id == user_id, Sale.created_at >= today_start, Sale.created_at < today_end)
         .first()
     )
-    today_revenue = today_profit[0] if today_profit[0] else 0
-    today_cost = today_profit[1] if today_profit[1] else 0
-    today_net_profit = today_revenue - today_cost
+    today_cost = today_sales_summary[1] if today_sales_summary[1] else 0
+    today_gross_profit = total_sales_today - today_cost
 
     return render_template(
         "reports.html",
@@ -1518,9 +1522,69 @@ def reports():
         total_invested=total_invested,
         payment_methods=payment_methods,
         recent_sales=recent_sales,
-        today_revenue=today_revenue,
         today_cost=today_cost,
-        today_net_profit=today_net_profit,
+        today_gross_profit=today_gross_profit,
+    )
+
+
+@app.route("/reports/debts-matrix")
+@login_required
+@require_permission("reports")
+def reports_debts_matrix():
+    debts = (
+        db.session.query(
+            db.func.coalesce(Sale.customer_name, "").label("customer_name"),
+            User.username.label("username"),
+            db.func.sum(Sale.total_cents - Sale.paid_cents).label("debt_cents"),
+        )
+        .join(User, User.id == Sale.user_id)
+        .filter((Sale.total_cents - Sale.paid_cents) > 0)
+        .group_by(db.func.coalesce(Sale.customer_name, ""), User.username)
+        .order_by(User.username.asc(), db.func.coalesce(Sale.customer_name, "").asc())
+        .all()
+    )
+
+    customer_debts = defaultdict(lambda: defaultdict(int))
+    users_with_debt = set()
+
+    for debt in debts:
+        customer_name = (debt.customer_name or "").strip() or "Sin nombre"
+        debt_cents = int(debt.debt_cents or 0)
+        customer_debts[customer_name][debt.username] += debt_cents
+        users_with_debt.add(debt.username)
+
+    users = sorted(users_with_debt)
+    rows = []
+    total_debt_cents = 0
+    debt_by_user = {username: 0 for username in users}
+
+    for customer_name in sorted(customer_debts.keys()):
+        per_user = dict(customer_debts[customer_name])
+        customer_total = sum(per_user.values())
+        rows.append(
+            {
+                "customer_name": customer_name,
+                "debts_by_user": per_user,
+                "total_debt_cents": customer_total,
+            }
+        )
+        total_debt_cents += customer_total
+        for username, debt_cents in per_user.items():
+            debt_by_user[username] = debt_by_user.get(username, 0) + debt_cents
+
+    top_customers = sorted(rows, key=lambda r: r["total_debt_cents"], reverse=True)[:10]
+    top_users = sorted(debt_by_user.items(), key=lambda item: item[1], reverse=True)
+
+    return render_template(
+        "debts_matrix_report.html",
+        users=users,
+        rows=rows,
+        total_debt_cents=total_debt_cents,
+        total_customers=len(rows),
+        total_users=len(users),
+        debt_by_user=debt_by_user,
+        top_customers=top_customers,
+        top_users=top_users,
     )
 
 

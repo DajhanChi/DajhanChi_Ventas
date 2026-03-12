@@ -162,7 +162,7 @@
                 {% endif %}
             </div>
 
-            <button class="button secondary" type="button" onclick="addLine()" style="width: 100%; margin-top: 12px;">➕ Agregar Otro Producto</button>
+            <button id="addLineBtn" class="button secondary" type="button" onclick="addLine()" style="width: 100%; margin-top: 12px;">➕ Agregar Otro Producto</button>
         </div>
 
         <div class="actions" style="margin-top: 28px;">
@@ -183,6 +183,42 @@
 // Datos de productos disponibles
 const productsDataEl = document.getElementById('products-data');
 const products = productsDataEl ? JSON.parse(productsDataEl.textContent) : [];
+
+function findScrollableParent(element) {
+    let current = element ? element.parentElement : null;
+    while (current) {
+        const style = window.getComputedStyle(current);
+        const overflowY = style.overflowY;
+        if ((overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight) {
+            return current;
+        }
+        current = current.parentElement;
+    }
+    return null;
+}
+
+function keepElementVisible(element, extraBottomSpace = 0) {
+    if (!element) {
+        return;
+    }
+
+    const scrollParent = findScrollableParent(element);
+    if (!scrollParent) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+    }
+
+    const parentRect = scrollParent.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const overBottom = elementRect.bottom + extraBottomSpace - parentRect.bottom;
+    const overTop = parentRect.top - elementRect.top;
+
+    if (overBottom > 0) {
+        scrollParent.scrollBy({ top: overBottom + 12, behavior: 'smooth' });
+    } else if (overTop > 0) {
+        scrollParent.scrollBy({ top: -(overTop + 12), behavior: 'smooth' });
+    }
+}
 
 // Función para filtrar y mostrar sugerencias
 function showSuggestions(input) {
@@ -224,6 +260,7 @@ function showSuggestions(input) {
     });
     
     suggestionsDiv.style.display = 'block';
+    requestAnimationFrame(() => keepElementVisible(suggestionsDiv, 8));
 }
 
 // Función para seleccionar un producto
@@ -286,6 +323,17 @@ function addLine() {
     lines.appendChild(clone);
     setupProductSearch();
     updateRemoveButtons();
+
+    const newLine = lines.lastElementChild;
+    const newInput = newLine ? newLine.querySelector('.product-search-input') : null;
+    const addButton = document.getElementById('addLineBtn');
+    if (newInput) {
+        newInput.focus();
+    }
+    requestAnimationFrame(() => {
+        keepElementVisible(newLine, 40);
+        keepElementVisible(addButton, 12);
+    });
 }
 
 function removeLine(button) {

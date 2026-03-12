@@ -764,7 +764,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
 
-                        <button class="button secondary" type="button" onclick="addSaleLine()" style="width: 100%; margin-top: 12px; font-weight: 600; background: white; border: 2px solid #bae6fd; color: #0369a1;"
+                        <button id="addSaleLineBtn" class="button secondary" type="button" onclick="addSaleLine()" style="width: 100%; margin-top: 12px; font-weight: 600; background: white; border: 2px solid #bae6fd; color: #0369a1;"
                                 onmouseover="this.style.background='#f0f9ff'; this.style.borderColor='#0ea5e9'"
                                 onmouseout="this.style.background='white'; this.style.borderColor='#bae6fd'">➕ Agregar Otro Producto</button>
                     </div>
@@ -833,6 +833,42 @@ document.addEventListener('DOMContentLoaded', function() {
 const productsDataEl = document.getElementById('products-data');
 const productsForSale = productsDataEl ? JSON.parse(productsDataEl.textContent) : [];
 
+function findScrollableParent(element) {
+    let current = element ? element.parentElement : null;
+    while (current) {
+        const style = window.getComputedStyle(current);
+        const overflowY = style.overflowY;
+        if ((overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight) {
+            return current;
+        }
+        current = current.parentElement;
+    }
+    return null;
+}
+
+function keepElementVisible(element, extraBottomSpace = 0) {
+    if (!element) {
+        return;
+    }
+
+    const scrollParent = findScrollableParent(element);
+    if (!scrollParent) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+    }
+
+    const parentRect = scrollParent.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const overBottom = elementRect.bottom + extraBottomSpace - parentRect.bottom;
+    const overTop = parentRect.top - elementRect.top;
+
+    if (overBottom > 0) {
+        scrollParent.scrollBy({ top: overBottom + 12, behavior: 'smooth' });
+    } else if (overTop > 0) {
+        scrollParent.scrollBy({ top: -(overTop + 12), behavior: 'smooth' });
+    }
+}
+
 function openSaleModal() {
     document.getElementById('saleModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
@@ -897,6 +933,7 @@ function showSuggestions(input) {
     });
     
     suggestionsDiv.style.display = 'block';
+    requestAnimationFrame(() => keepElementVisible(suggestionsDiv, 8));
 }
 
 function selectProduct(container, product) {
@@ -952,6 +989,17 @@ function addSaleLine() {
     lines.appendChild(clone);
     setupProductSearch();
     updateSaleRemoveButtons();
+
+    const newLine = lines.lastElementChild;
+    const newInput = newLine ? newLine.querySelector('.product-search-input') : null;
+    const addButton = document.getElementById('addSaleLineBtn');
+    if (newInput) {
+        newInput.focus();
+    }
+    requestAnimationFrame(() => {
+        keepElementVisible(newLine, 40);
+        keepElementVisible(addButton, 12);
+    });
 }
 
 function removeSaleLine(button) {
@@ -1053,7 +1101,7 @@ document.addEventListener('keydown', function(e) {
                             <!-- Las líneas se agregarán dinámicamente -->
                         </div>
 
-                        <button class="button secondary" type="button" onclick="addEditSaleLine()" style="width: 100%; margin-top: 12px; font-weight: 600; background: white; border: 2px solid #fcd34d; color: #92400e;"
+                        <button id="addEditSaleLineBtn" class="button secondary" type="button" onclick="addEditSaleLine()" style="width: 100%; margin-top: 12px; font-weight: 600; background: white; border: 2px solid #fcd34d; color: #92400e;"
                                 onmouseover="this.style.background='#fef3c7'; this.style.borderColor='#f59e0b'"
                                 onmouseout="this.style.background='white'; this.style.borderColor='#fcd34d'">➕ Agregar Otro Producto</button>
                     </div>
@@ -1184,6 +1232,7 @@ function showEditSuggestions(input) {
     });
     
     suggestionsDiv.style.display = 'block';
+    requestAnimationFrame(() => keepElementVisible(suggestionsDiv, 8));
 }
 
 function selectEditProduct(container, product) {
@@ -1227,6 +1276,17 @@ function addEditSaleLine() {
     lines.insertAdjacentHTML('beforeend', lineHtml);
     setupEditProductSearch();
     updateEditSaleRemoveButtons();
+
+    const newLine = lines.lastElementChild;
+    const newInput = newLine ? newLine.querySelector('.edit-product-search-input') : null;
+    const addButton = document.getElementById('addEditSaleLineBtn');
+    if (newInput) {
+        newInput.focus();
+    }
+    requestAnimationFrame(() => {
+        keepElementVisible(newLine, 40);
+        keepElementVisible(addButton, 12);
+    });
 }
 
 function removeEditSaleLine(button) {

@@ -285,7 +285,15 @@
             Bienvenido, <strong>{{ session.get('username', 'Usuario') }}</strong> 
             <span style="margin-left: 8px;">•</span> 
             <span style="margin-left: 8px;">{{ now().strftime('%d/%m/%Y %H:%M') }}</span>
+            <span style="margin-left: 8px;">•</span>
+            <span id="last-updated-time" style="margin-left: 8px;">Actualizado: {{ now().strftime('%H:%M:%S') }}</span>
         </p>
+    </div>
+    <div>
+        <button type="button" onclick="refreshDashboardNow()" class="quick-action-btn" style="height: 44px; min-width: 200px;">
+            <span class="quick-action-icon">🔄</span>
+            <span>Actualizar datos</span>
+        </button>
     </div>
 </div>
 
@@ -513,7 +521,7 @@
                             </div>
                         </div>
 
-                        <button class="button secondary" type="button" onclick="addSaleLine()" style="width: 100%; margin-top: 12px; font-weight: 600; background: white; border: 2px solid #bae6fd; color: #0369a1;" onmouseover="this.style.background='#f0f9ff'; this.style.borderColor='#0ea5e9'" onmouseout="this.style.background='white'; this.style.borderColor='#bae6fd'">➕ Agregar Otro Producto</button>
+                        <button id="addSaleLineBtn" class="button secondary" type="button" onclick="addSaleLine()" style="width: 100%; margin-top: 12px; font-weight: 600; background: white; border: 2px solid #bae6fd; color: #0369a1;" onmouseover="this.style.background='#f0f9ff'; this.style.borderColor='#0ea5e9'" onmouseout="this.style.background='white'; this.style.borderColor='#bae6fd'">➕ Agregar Otro Producto</button>
                     </div>
                 </div>
             </form>
@@ -619,6 +627,71 @@
 <script>
 const productsDataEl = document.getElementById('products-data');
 const productsForSale = productsDataEl ? JSON.parse(productsDataEl.textContent) : [];
+const DASHBOARD_AUTO_REFRESH_MS = 120000;
+let dashboardRefreshTimer = null;
+
+function findScrollableParent(element) {
+    let current = element ? element.parentElement : null;
+    while (current) {
+        const style = window.getComputedStyle(current);
+        const overflowY = style.overflowY;
+        if ((overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight) {
+            return current;
+        }
+        current = current.parentElement;
+    }
+    return null;
+}
+
+function keepElementVisible(element, extraBottomSpace = 0) {
+    if (!element) {
+        return;
+    }
+
+    const scrollParent = findScrollableParent(element);
+    if (!scrollParent) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+    }
+
+    const parentRect = scrollParent.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const overBottom = elementRect.bottom + extraBottomSpace - parentRect.bottom;
+    const overTop = parentRect.top - elementRect.top;
+
+    if (overBottom > 0) {
+        scrollParent.scrollBy({ top: overBottom + 12, behavior: 'smooth' });
+    } else if (overTop > 0) {
+        scrollParent.scrollBy({ top: -(overTop + 12), behavior: 'smooth' });
+    }
+}
+
+function hasOpenDashboardModal() {
+    const saleModal = document.getElementById('saleModal');
+    const productModal = document.getElementById('productModal');
+    return (saleModal && saleModal.style.display === 'flex') || (productModal && productModal.style.display === 'flex');
+}
+
+function refreshDashboardNow() {
+    window.location.reload();
+}
+
+function startDashboardAutoRefresh() {
+    stopDashboardAutoRefresh();
+    dashboardRefreshTimer = window.setInterval(() => {
+        if (document.hidden || hasOpenDashboardModal()) {
+            return;
+        }
+        window.location.reload();
+    }, DASHBOARD_AUTO_REFRESH_MS);
+}
+
+function stopDashboardAutoRefresh() {
+    if (dashboardRefreshTimer) {
+        window.clearInterval(dashboardRefreshTimer);
+        dashboardRefreshTimer = null;
+    }
+}
 
 function renderModalHtml(contentElement, html, submitHandler) {
     const parser = new DOMParser();
@@ -766,6 +839,7 @@ function showSuggestions(input) {
     });
 
     suggestionsDiv.style.display = 'block';
+    requestAnimationFrame(() => keepElementVisible(suggestionsDiv, 8));
 }
 
 function selectProduct(container, product) {
@@ -817,6 +891,17 @@ function addSaleLine() {
     lines.appendChild(clone);
     setupProductSearch();
     updateSaleRemoveButtons();
+
+    const newLine = lines.lastElementChild;
+    const newInput = newLine ? newLine.querySelector('.product-search-input') : null;
+    const addButton = document.getElementById('addSaleLineBtn');
+    if (newInput) {
+        newInput.focus();
+    }
+    requestAnimationFrame(() => {
+        keepElementVisible(newLine, 40);
+        keepElementVisible(addButton, 12);
+    });
 }
 
 function removeSaleLine(button) {
@@ -943,6 +1028,16 @@ document.addEventListener('keydown', function(event) {
 
 // Cerrar modales al hacer clic fuera
 document.addEventListener('DOMContentLoaded', function() {
+    startDashboardAutoRefresh();
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopDashboardAutoRefresh();
+            return;
+        }
+        startDashboardAutoRefresh();
+    });
+
     document.addEventListener('click', function(event) {
         if (!event.target.closest('#saleModal .product-search-container')) {
             document.querySelectorAll('#saleModal .product-suggestions').forEach(div => {
