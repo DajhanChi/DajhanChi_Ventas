@@ -1359,6 +1359,104 @@ def debt_customer_receipt():
         items_list=items_list,
         pending_sales=sorted(pending_sales, key=lambda s: s.created_at, reverse=True),
         payments_history=payments_history,
+        back_url=url_for("debts"),
+        hide_payment_action=False,
+        responsible_username=None,
+    )
+
+
+@app.route("/reports/debts-matrix/receipt")
+@login_required
+@require_permission("reports")
+def reports_debt_customer_receipt():
+    customer_key = request.args.get("customer", "").strip()
+    responsible_username = request.args.get("username", "").strip()
+
+    if not customer_key:
+        flash("Cliente inválido", "error")
+        return redirect(url_for("reports_debts_matrix"))
+
+    customer_name, customer_filter = get_customer_filter_from_key(customer_key)
+
+    pending_sales_query = (
+        Sale.query.filter(
+            customer_filter,
+            Sale.payment_method == "fiado",
+            Sale.payment_status.in_(["pendiente", "parcial"])
+        )
+        .options(
+            db.joinedload(Sale.items).joinedload(SaleItem.product),
+            db.joinedload(Sale.payments),
+            db.joinedload(Sale.user)
+        )
+    )
+
+    if responsible_username:
+        responsible_user = User.query.filter_by(username=responsible_username, is_active=True).first()
+        if not responsible_user:
+            flash("Usuario inválido", "error")
+            return redirect(url_for("reports_debts_matrix"))
+        pending_sales_query = pending_sales_query.filter(Sale.user_id == responsible_user.id)
+
+    pending_sales = pending_sales_query.order_by(Sale.created_at.asc()).all()
+
+    if not pending_sales:
+        flash("No hay deudas pendientes para este criterio", "error")
+        return redirect(url_for("reports_debts_matrix"))
+
+    items_map = {}
+    payments_history = []
+    total_original_cents = 0
+    total_paid_cents = 0
+    total_pending_cents = 0
+
+    for sale in pending_sales:
+        total_original_cents += sale.total_cents
+        total_paid_cents += sale.paid_cents
+        total_pending_cents += sale.pending_cents
+
+        for item in sale.items:
+            product_name = item.product.name if item.product else "Producto eliminado"
+            key = item.product_id
+            if key not in items_map:
+                items_map[key] = {
+                    "product_name": product_name,
+                    "qty": 0,
+                    "line_total_cents": 0
+                }
+            items_map[key]["qty"] += item.qty
+            items_map[key]["line_total_cents"] += item.line_total_cents
+
+        for payment in sale.payments:
+            payments_history.append({
+                "sale_id": sale.id,
+                "amount_cents": payment.amount_cents,
+                "payment_method": payment.payment_method,
+                "notes": payment.notes or "",
+                "created_at": payment.created_at,
+            })
+
+    items_list = sorted(items_map.values(), key=lambda x: x["product_name"].lower())
+    payments_history.sort(key=lambda x: x["created_at"], reverse=True)
+
+    generated_at = datetime.now()
+    receipt_number = f"BOL-{generated_at.strftime('%Y%m%d%H%M')}-{pending_sales[-1].id:05d}"
+
+    return render_template(
+        "debt_receipt.html",
+        customer_name=customer_name,
+        customer_key=customer_key,
+        generated_at=generated_at,
+        receipt_number=receipt_number,
+        total_original_cents=total_original_cents,
+        total_paid_cents=total_paid_cents,
+        total_pending_cents=total_pending_cents,
+        items_list=items_list,
+        pending_sales=sorted(pending_sales, key=lambda s: s.created_at, reverse=True),
+        payments_history=payments_history,
+        back_url=url_for("reports_debts_matrix"),
+        hide_payment_action=True,
+        responsible_username=responsible_username or None,
     )
 
 
@@ -1544,13 +1642,20 @@ def reports_debts_matrix():
         .all()
     )
 
-    customer_debts = defaultdict(lambda: defaultdict(int))
+    customer_debts = {}
     users_with_debt = set()
 
     for debt in debts:
-        customer_name = (debt.customer_name or "").strip() or "Sin nombre"
+        raw_customer_name = (debt.customer_name or "").strip()
+        customer_key = raw_customer_name or "__SIN_NOMBRE__"
+        customer_name = raw_customer_name or "Sin nombre"
         debt_cents = int(debt.debt_cents or 0)
-        customer_debts[customer_name][debt.username] += debt_cents
+        if customer_key not in customer_debts:
+            customer_debts[customer_key] = {
+                "customer_name": customer_name,
+                "debts_by_user": defaultdict(int),
+            }
+        customer_debts[customer_key]["debts_by_user"][debt.username] += debt_cents
         users_with_debt.add(debt.username)
 
     users = sorted(users_with_debt)
@@ -1558,12 +1663,14 @@ def reports_debts_matrix():
     total_debt_cents = 0
     debt_by_user = {username: 0 for username in users}
 
-    for customer_name in sorted(customer_debts.keys()):
-        per_user = dict(customer_debts[customer_name])
+    for customer_key in sorted(customer_debts.keys(), key=lambda key: customer_debts[key]["customer_name"].lower()):
+        customer_data = customer_debts[customer_key]
+        per_user = dict(customer_data["debts_by_user"])
         customer_total = sum(per_user.values())
         rows.append(
             {
-                "customer_name": customer_name,
+                "customer_name": customer_data["customer_name"],
+                "customer_key": customer_key,
                 "debts_by_user": per_user,
                 "total_debt_cents": customer_total,
             }

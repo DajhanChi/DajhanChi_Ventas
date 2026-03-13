@@ -1,266 +1,504 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-.debt-matrix-header {
+.report-shell {
+    display: grid;
+    gap: 22px;
+}
+
+.report-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 24px;
+    padding: 28px 30px;
+    background: linear-gradient(135deg, #0f172a 0%, #162447 58%, #1d4ed8 100%);
+    color: #f8fafc;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.report-hero::after {
+    content: "";
+    position: absolute;
+    inset: auto -80px -120px auto;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 70%);
+    pointer-events: none;
+}
+
+.report-hero-top {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 18px;
-    margin-bottom: 24px;
     flex-wrap: wrap;
 }
 
-.debt-matrix-header h1 {
-    margin: 0;
-    font-size: 30px;
-    color: #0f172a;
+.report-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.report-hero h1 {
+    margin: 14px 0 10px 0;
+    font-size: clamp(28px, 3.8vw, 38px);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    color: #ffffff;
 }
 
 .debt-matrix-subtitle {
-    margin: 6px 0 0 0;
-    color: #64748b;
-    font-size: 14px;
+    margin: 0;
+    max-width: 720px;
+    color: rgba(226, 232, 240, 0.88);
+    font-size: 15px;
+}
+
+.hero-note {
+    min-width: 210px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(15, 23, 42, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(8px);
+}
+
+.hero-note-label {
+    color: rgba(191, 219, 254, 0.82);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.hero-note-value {
+    margin-top: 8px;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.hero-note-caption {
+    margin-top: 6px;
+    font-size: 13px;
+    color: rgba(226, 232, 240, 0.82);
 }
 
 .metrics-strip {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
-    margin-bottom: 22px;
 }
 
 .metric-block {
-    border-radius: 14px;
-    padding: 18px;
-    border: 1px solid #dbe3ef;
-    background: linear-gradient(145deg, #ffffff 0%, #f8fbff 100%);
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+    position: relative;
+    border-radius: 18px;
+    padding: 20px 20px 18px;
+    border: 1px solid #d9e2ef;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+}
+
+.metric-block::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(90deg, #1d4ed8 0%, #0f766e 100%);
 }
 
 .metric-label {
-    font-size: 12px;
+    font-size: 11px;
     color: #64748b;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    margin-bottom: 8px;
-    font-weight: 600;
+    margin-bottom: 10px;
+    font-weight: 700;
 }
 
 .metric-value {
-    font-size: 28px;
-    line-height: 1.1;
+    font-size: 30px;
+    line-height: 1.05;
     color: #0f172a;
     font-weight: 800;
+    letter-spacing: -0.03em;
 }
 
-.report-grid {
-    display: grid;
-    grid-template-columns: minmax(280px, 1fr);
-    gap: 22px;
-    margin-top: 26px;
-}
-
-.report-panel {
-    background: #ffffff;
-    border: 1px solid #dbe3ef;
-    border-radius: 14px;
-    padding: 18px;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
-}
-
-.report-panel h3 {
-    margin: 0 0 12px 0;
-    color: #0f172a;
-    font-size: 16px;
-}
-
-.rank-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.rank-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 0;
-    border-bottom: 1px solid #edf2f7;
-}
-
-.rank-item:last-child {
-    border-bottom: none;
-}
-
-.rank-name {
-    color: #1e293b;
-    font-weight: 600;
-}
-
-.rank-value {
-    color: #0f766e;
-    font-weight: 700;
+.metric-foot {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #64748b;
 }
 
 .table-shell {
     border-radius: 16px;
-    border: 1px solid #d5deeb;
+    border: 1px solid #e5e7eb;
     overflow: hidden;
     background: #ffffff;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
-    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #ffffff;
+    flex-wrap: wrap;
+}
+
+.table-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 17px;
+    font-weight: 800;
+}
+
+.table-subtitle {
+    margin: 4px 0 0 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.table-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.meta-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 1px solid #d7e2ef;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .table-wrap {
+    max-height: 600px;
+    overflow-y: auto;
     overflow-x: hidden;
+    border-radius: 12px;
+}
+
+.table-wrap::-webkit-scrollbar {
+    width: 12px;
+}
+
+.table-wrap::-webkit-scrollbar-track {
+    background: #f9fafb;
+    border-radius: 10px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    border-radius: 10px;
+    border: 2px solid #f9fafb;
+}
+
+.table-wrap::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
 }
 
 table.debt-matrix {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     table-layout: fixed;
 }
 
 table.debt-matrix thead th {
-    background: #0f172a;
-    color: #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    color: #ffffff;
     text-align: right;
-    padding: 10px 8px;
-    font-size: 11px;
-    border-bottom: 2px solid #1d4ed8;
-}
-
-table.debt-matrix thead th:first-child {
-    text-align: left;
-    width: 34%;
-}
-
-table.debt-matrix tbody td {
-    border-bottom: 1px solid #eef2f7;
-    padding: 10px 8px;
-    text-align: right;
+    padding: 18px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: none;
     white-space: normal;
     word-break: break-word;
 }
 
-table.debt-matrix tbody td:first-child {
+table.debt-matrix thead th:first-child {
+    width: 26%;
     text-align: left;
-    color: #0f172a;
-    font-weight: 600;
+}
+
+table.debt-matrix tbody td,
+table.debt-matrix tfoot td {
+    padding: 20px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: right;
+    vertical-align: middle;
+    word-wrap: break-word;
+    overflow: hidden;
+}
+
+table.debt-matrix tbody tr {
+    background: #ffffff;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 table.debt-matrix tbody tr:hover {
-    background: #f8fbff;
+    background: #f9fafb;
+    transform: translateX(2px);
+    box-shadow: -4px 0 0 0 #3b82f6, 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+table.debt-matrix tbody td:first-child,
+table.debt-matrix tfoot td:first-child {
+    text-align: left;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.customer-name {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.customer-label {
+    font-size: 14px;
+    color: #0f172a;
+}
+
+.customer-caption {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.amount-pill {
+    display: inline-flex;
+    justify-content: flex-end;
+    min-width: 0;
+    max-width: 100%;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+    font-weight: 700;
+    white-space: normal;
+    word-break: break-word;
+    border: 1px solid #93c5fd;
+}
+
+.amount-link {
+    display: inline-flex;
+    text-decoration: none;
+}
+
+.amount-link:hover .amount-pill {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.22);
 }
 
 .cell-zero {
     color: #94a3b8;
 }
 
-.col-total {
-    color: #0f766e;
-    font-weight: 700;
+.cell-zero .amount-pill {
+    background: #f3f4f6;
+    color: #9ca3af;
+    border-color: #e5e7eb;
+}
+
+.col-total .amount-pill,
+.total-amount {
+    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+    color: #065f46;
+    border-color: #a7f3d0;
 }
 
 tfoot td {
-    padding: 12px 10px;
-    border-top: 2px solid #1d4ed8;
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
     font-weight: 800;
-    background: #eef6ff;
-    text-align: right;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+    border-bottom: none;
 }
 
 tfoot td:first-child {
-    text-align: left;
-    color: #0f172a;
+    z-index: 7;
+    background: #f9fafb;
 }
 
 .empty-report {
-    border-radius: 12px;
+    border-radius: 20px;
     border: 1px dashed #cbd5e1;
-    background: #ffffff;
-    padding: 36px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    padding: 48px 24px;
     text-align: center;
     color: #64748b;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+}
+
+.empty-report h3 {
+    margin: 0 0 8px 0;
+    color: #0f172a;
 }
 
 @media (max-width: 980px) {
-    .report-grid {
+    .report-hero {
+        padding: 22px;
+    }
+
+    .report-hero h1 {
+        font-size: 30px;
+    }
+}
+
+@media (max-width: 720px) {
+    .metrics-strip {
         grid-template-columns: 1fr;
+    }
+
+    .table-toolbar {
+        padding: 16px;
+    }
+
+    table.debt-matrix thead th,
+    table.debt-matrix tbody td,
+    table.debt-matrix tfoot td {
+        padding: 14px 10px;
     }
 }
 </style>
 
-<div class="debt-matrix-header">
-    <div>
-        <h1>Reporte Integral de Deuda por Cliente</h1>
-        <p class="debt-matrix-subtitle">Vista empresarial consolidada por vendedor y cliente con corte en tiempo real.</p>
-    </div>
-</div>
+<div class="report-shell">
+    <section class="report-hero animate-card-pop">
+        <div class="report-hero-top">
+            <div>
+                <div class="report-kicker">Cartera consolidada</div>
+                <h1>Reporte Integral de Deuda por Cliente</h1>
+            </div>
+            <div class="hero-note">
+                <div class="hero-note-label">Corte actual</div>
+                <div class="hero-note-value">{{ rows|length }} clientes</div>
+                <div class="hero-note-caption">Base viva de cuentas pendientes por cobrar.</div>
+            </div>
+        </div>
+    </section>
 
-<div class="metrics-strip">
-    <div class="metric-block animate-card-pop animate-stagger-1">
-        <div class="metric-label">Deuda Total General</div>
-        <div class="metric-value">{{ total_debt_cents|money }}</div>
+    <div class="metrics-strip">
+        <div class="metric-block animate-card-pop animate-stagger-1">
+            <div class="metric-label">Deuda total general</div>
+            <div class="metric-value">{{ total_debt_cents|money }}</div>
+            <div class="metric-foot">Saldo consolidado pendiente de recuperación.</div>
+        </div>
+        <div class="metric-block animate-card-pop animate-stagger-2">
+            <div class="metric-label">Clientes con deuda</div>
+            <div class="metric-value">{{ total_customers }}</div>
+            <div class="metric-foot">Universo actual de clientes con cartera abierta.</div>
+        </div>
+        <div class="metric-block animate-card-pop animate-stagger-3">
+            <div class="metric-label">Usuarios con cartera</div>
+            <div class="metric-value">{{ total_users }}</div>
+            <div class="metric-foot">Responsables con saldo vigente asignado.</div>
+        </div>
     </div>
-    <div class="metric-block animate-card-pop animate-stagger-2">
-        <div class="metric-label">Clientes con Deuda</div>
-        <div class="metric-value">{{ total_customers }}</div>
-    </div>
-    <div class="metric-block animate-card-pop animate-stagger-3">
-        <div class="metric-label">Usuarios con Cartera</div>
-        <div class="metric-value">{{ total_users }}</div>
-    </div>
-</div>
 
-{% if rows %}
-<div class="table-shell animate-slide-up">
-    <div class="table-wrap">
-        <table class="debt-matrix">
-            <thead>
-                <tr>
-                    <th>Cliente</th>
-                    {% for username in users %}
-                    <th>{{ username }}</th>
-                    {% endfor %}
-                    <th>Total Deuda</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in rows %}
-                <tr>
-                    <td>{{ row.customer_name }}</td>
-                    {% for username in users %}
-                        {% set debt_cents = row.debts_by_user.get(username, 0) %}
-                        <td class="{% if debt_cents == 0 %}cell-zero{% endif %}">
-                            {% if debt_cents == 0 %}
-                                -
-                            {% else %}
-                                {{ debt_cents|money }}
-                            {% endif %}
+    {% if rows %}
+    <div class="table-shell animate-slide-up">
+        <div class="table-toolbar">
+            <div>
+                <h2 class="table-title">Matriz general de deuda</h2>
+            </div>
+            <div class="table-meta">
+                <div class="meta-chip">{{ rows|length }} clientes analizados</div>
+                <div class="meta-chip">{{ users|length }} columnas por usuario</div>
+                <div class="meta-chip">Saldo total {{ total_debt_cents|money }}</div>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="debt-matrix">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        {% for username in users %}
+                        <th>{{ username }}</th>
+                        {% endfor %}
+                        <th>Total deuda</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>
+                            <div class="customer-name">
+                                <span class="customer-label">{{ row.customer_name }}</span>
+                                <span class="customer-caption">Total consolidado del cliente</span>
+                            </div>
                         </td>
+                        {% for username in users %}
+                            {% set debt_cents = row.debts_by_user.get(username, 0) %}
+                            <td class="{% if debt_cents == 0 %}cell-zero{% endif %}">
+                                {% if debt_cents > 0 %}
+                                <a class="amount-link" href="{{ url_for('reports_debt_customer_receipt', customer=row.customer_key, username=username) }}">
+                                    <span class="amount-pill">
+                                        {{ debt_cents|money }}
+                                    </span>
+                                </a>
+                                {% else %}
+                                <span class="amount-pill {% if debt_cents == 0 %}zero-amount{% endif %}">
+                                    -
+                                </span>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                        <td class="col-total">
+                            <a class="amount-link" href="{{ url_for('reports_debt_customer_receipt', customer=row.customer_key) }}">
+                                <span class="amount-pill total-amount">{{ row.total_debt_cents|money }}</span>
+                            </a>
+                        </td>
+                    </tr>
                     {% endfor %}
-                    <td class="col-total">{{ row.total_debt_cents|money }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td>TOTAL GENERAL</td>
-                    {% for username in users %}
-                    <td>{{ debt_by_user.get(username, 0)|money }}</td>
-                    {% endfor %}
-                    <td>{{ total_debt_cents|money }}</td>
-                </tr>
-            </tfoot>
-        </table>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>Total general</td>
+                        {% for username in users %}
+                        <td><span class="amount-pill total-amount">{{ debt_by_user.get(username, 0)|money }}</span></td>
+                        {% endfor %}
+                        <td><span class="amount-pill total-amount">{{ total_debt_cents|money }}</span></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     </div>
+    {% else %}
+    <div class="empty-report animate-card-pop">
+        <h3>Sin deudas pendientes</h3>
+        <p>No se encontraron saldos pendientes en la cartera actual.</p>
+    </div>
+    {% endif %}
 </div>
-{% else %}
-<div class="empty-report animate-card-pop">
-    <h3>Sin deudas pendientes</h3>
-    <p>No se encontraron saldos pendientes en la cartera actual.</p>
-</div>
-{% endif %}
 {% endblock %}

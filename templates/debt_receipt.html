@@ -124,7 +124,7 @@
     text-shadow: none;
 }
 
-.kpi.original { background: #333; }
+.kpi.original { background: #f3e9d2; color: #4b3a1f; }
 .kpi.paid { background: #10b981; }
 .kpi.pending { background: #ef4444; }
 
@@ -370,8 +370,10 @@ body.compact-print .receipt-body {
 
 <div class="receipt-wrapper">
     <div class="actions-bar">
-        <button type="button" class="button secondary" data-href="{{ url_for('debts') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver a deudas</button>
+        <button type="button" class="button secondary" data-href="{{ back_url or url_for('debts') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver</button>
+        {% if not hide_payment_action %}
         <button type="button" class="button success" data-href="{{ url_for('customer_payment_register', customer=customer_key) }}" onclick="window.location.href=this.getAttribute('data-href')">💳 Registrar pago</button>
+        {% endif %}
         <button type="button" class="button" onclick="printCompact()">🖨️ Imprimir / PDF</button>
     </div>
 
@@ -379,7 +381,12 @@ body.compact-print .receipt-body {
         <header class="receipt-header">
             <div class="receipt-brand">
                 <h1>🧾 Boleta de deuda</h1>
-                <p>Estado de cuenta consolidado del cliente</p>
+                <p>
+                    Estado de cuenta consolidado del cliente
+                    {% if responsible_username %}
+                    · Vendedor: {{ responsible_username }}
+                    {% endif %}
+                </p>
             </div>
             <div class="receipt-badge">
                 N° {{ receipt_number }}
