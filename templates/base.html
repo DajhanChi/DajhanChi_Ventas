@@ -11,6 +11,7 @@
 <body>
 {% if session.get('user_id') %}
 <div class="app-layout">
+    <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Mostrar u ocultar menu lateral" aria-expanded="true" title="Ocultar menu">⋮</button>
     <aside class="sidebar">
         <div class="sidebar-header">
             <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 28px; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">D</div>
@@ -182,6 +183,7 @@
     const confirmDesc = document.getElementById('appConfirmDesc');
     const confirmOk = document.getElementById('appConfirmOk');
     const confirmCancel = document.getElementById('appConfirmCancel');
+    const sidebarToggle = document.getElementById('sidebarToggle');
     let pendingForm = null;
     let pendingLink = null;
 
@@ -234,6 +236,21 @@
         confirmModal.addEventListener('click', (event) => {
             if (event.target === confirmModal) closeConfirm();
         });
+    }
+
+    if (sidebarToggle) {
+        const syncSidebarToggle = () => {
+            const collapsed = document.body.classList.contains('sidebar-collapsed');
+            sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            sidebarToggle.setAttribute('title', collapsed ? 'Mostrar menu' : 'Ocultar menu');
+        };
+
+        sidebarToggle.addEventListener('click', () => {
+            document.body.classList.toggle('sidebar-collapsed');
+            syncSidebarToggle();
+        });
+
+        syncSidebarToggle();
     }
 })();
 </script>

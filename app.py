@@ -45,7 +45,6 @@ BACKUP_DIR = os.path.join(BASE_DIR, "backup")
 BACKUP_RETENTION = 7
 BACKUP_TIME = "00:00"
 
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)

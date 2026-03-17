@@ -196,7 +196,7 @@
 .table-wrap {
     max-height: 600px;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     border-radius: 12px;
 }
 
@@ -407,24 +407,6 @@ tfoot td:first-child {
             </div>
         </div>
     </section>
-
-    <div class="metrics-strip">
-        <div class="metric-block animate-card-pop animate-stagger-1">
-            <div class="metric-label">Deuda total general</div>
-            <div class="metric-value">{{ total_debt_cents|money }}</div>
-            <div class="metric-foot">Saldo consolidado pendiente de recuperación.</div>
-        </div>
-        <div class="metric-block animate-card-pop animate-stagger-2">
-            <div class="metric-label">Clientes con deuda</div>
-            <div class="metric-value">{{ total_customers }}</div>
-            <div class="metric-foot">Universo actual de clientes con cartera abierta.</div>
-        </div>
-        <div class="metric-block animate-card-pop animate-stagger-3">
-            <div class="metric-label">Usuarios con cartera</div>
-            <div class="metric-value">{{ total_users }}</div>
-            <div class="metric-foot">Responsables con saldo vigente asignado.</div>
-        </div>
-    </div>
 
     {% if rows %}
     <div class="table-shell animate-slide-up">
