@@ -1,7 +1,4 @@
 import os
-import sqlite3
-import threading
-import time
 import json
 import importlib
 from collections import defaultdict
@@ -9,6 +6,7 @@ from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 from io import BytesIO
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import load_dotenv
 
@@ -33,20 +31,41 @@ app.config["COMPRESS_MIN_SIZE"] = 1000
 PROTECTED_USERNAME = os.getenv("PROTECTED_USERNAME", "dajhanchi")
 PROTECTED_USER_SECRET = os.getenv("PROTECTED_USER_SECRET", "default-insecure-key-change-in-production")
 
-# Solo configurar la base de datos si no se ha configurado externamente
-if not app.config.get("SQLALCHEMY_DATABASE_URI"):
-    instance_db_path = os.path.join(app.instance_path, "app.db")
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{instance_db_path}"
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    raise RuntimeError(
+        "Falta DATABASE_URL. Configura la URL de PostgreSQL de Supabase en el archivo .env."
+    )
+if database_url.startswith(("http://", "https://")):
+    raise RuntimeError(
+        "DATABASE_URL debe ser una cadena PostgreSQL, no la URL web de Supabase. "
+        "Copia la Connection string desde Supabase > Connect > ORMs > SQLAlchemy."
+    )
+if "[YOUR-PASSWORD]" in database_url or "[PASSWORD]" in database_url:
+    raise RuntimeError(
+        "Reemplaza [YOUR-PASSWORD] en DATABASE_URL por la contraseña real de tu proyecto Supabase."
+    )
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+# psycopg2 no reconoce el parámetro de configuración usado por el pooler de Supabase.
+database_parts = urlsplit(database_url)
+database_query = [
+    (key, value)
+    for key, value in parse_qsl(database_parts.query, keep_blank_values=True)
+    if key.lower() != "pgbouncer"
+]
+database_url = urlunsplit(
+    database_parts._replace(query=urlencode(database_query))
+)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
 
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 _db_initialized = False
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKUP_DIR = os.path.join(BASE_DIR, "backup")
-BACKUP_RETENTION = 7
-BACKUP_TIME = "00:00"
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
@@ -255,90 +274,6 @@ def get_customer_filter_from_key(customer_key):
     if customer_key == "__SIN_NOMBRE__":
         return "Sin nombre", (Sale.customer_name.is_(None)) | (Sale.customer_name == "")
     return customer_key, Sale.customer_name == customer_key
-
-
-def _get_sqlite_db_path():
-    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if uri.startswith("sqlite:///"):
-        return uri.replace("sqlite:///", "", 1)
-    return None
-
-
-def _prune_backups():
-    if not os.path.isdir(BACKUP_DIR):
-        return
-    backups = [
-        os.path.join(BACKUP_DIR, name)
-        for name in os.listdir(BACKUP_DIR)
-        if name.startswith("app-") and name.endswith(".db")
-    ]
-    backups.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    for old in backups[BACKUP_RETENTION:]:
-        try:
-            os.remove(old)
-        except OSError:
-            pass
-
-
-def create_backup():
-    db_path = _get_sqlite_db_path()
-    if not db_path or not os.path.exists(db_path):
-        return
-    os.makedirs(BACKUP_DIR, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    backup_path = os.path.join(BACKUP_DIR, f"app-{timestamp}.db")
-
-    try:
-        with sqlite3.connect(db_path) as src, sqlite3.connect(backup_path) as dst:
-            src.backup(dst)
-    except sqlite3.Error:
-        return
-
-    _prune_backups()
-
-
-def _next_backup_delay():
-    try:
-        hour_str, minute_str = BACKUP_TIME.split(":", 1)
-        hour = int(hour_str)
-        minute = int(minute_str)
-    except (ValueError, AttributeError):
-        hour, minute = 0, 0
-
-    now = datetime.now()
-    next_run = datetime.combine(now.date(), datetime.min.time()).replace(hour=hour, minute=minute)
-    if next_run <= now:
-        next_run += timedelta(days=1)
-    return (next_run - now).total_seconds()
-
-
-def start_backup_scheduler():
-    def worker():
-        while True:
-            delay = _next_backup_delay()
-            time.sleep(delay)
-            create_backup()
-
-    thread = threading.Thread(target=worker, daemon=True)
-    thread.start()
-
-
-def ensure_recent_backup():
-    if not os.path.isdir(BACKUP_DIR):
-        create_backup()
-        return
-    backups = [
-        os.path.join(BACKUP_DIR, name)
-        for name in os.listdir(BACKUP_DIR)
-        if name.startswith("app-") and name.endswith(".db")
-    ]
-    if not backups:
-        create_backup()
-        return
-    latest = max(backups, key=lambda p: os.path.getmtime(p))
-    age_seconds = time.time() - os.path.getmtime(latest)
-    if age_seconds >= 24 * 60 * 60:
-        create_backup()
 
 
 def get_home_page_for_user(user_id, role):
@@ -2275,6 +2210,4 @@ def settings():
 
 
 if __name__ == "__main__":
-    ensure_recent_backup()
-    start_backup_scheduler()
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True, use_reloader=False)

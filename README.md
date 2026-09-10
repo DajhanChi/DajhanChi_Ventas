@@ -1,6 +1,6 @@
 # 📦 Sistema de Ventas
 
-Sistema de gestión de ventas desarrollado con Flask, SQLite y Bootstrap.
+Sistema de gestión de ventas desarrollado con Flask, PostgreSQL (Supabase) y Bootstrap.
 
 ## 🚀 Formas de Ejecutar
 
@@ -59,7 +59,11 @@ copy .env.example .env
 SECRET_KEY=genera-una-clave-aleatoria-aqui
 PROTECTED_USERNAME=dajhanchi
 PROTECTED_USER_SECRET=tu-clave-super-secreta
+DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?sslmode=require
 ```
+
+En Supabase, copia la cadena de conexión desde **Project Settings > Database > Connection string**.
+Para una aplicación desplegada, usa la conexión recomendada por Supabase y conserva `sslmode=require`.
 
 3. **Genera una SECRET_KEY segura:**
 ```bash
@@ -155,8 +159,17 @@ flask db upgrade
 
 ## 💾 Base de Datos
 
-- **Desarrollo:** `instance/app.db`
-- **Ejecutable:** `%APPDATA%\SistemaVentas\app.db`
+La aplicación utiliza PostgreSQL en Supabase. Antes de iniciar, configura `DATABASE_URL` en `.env`.
+En una base Supabase nueva, la aplicación crea las tablas actuales automáticamente en el primer acceso.
+Inicia la aplicación con:
+
+```bash
+python app.py
+```
+
+Las migraciones `flask db upgrade` se conservan para bases que ya tienen el historial de Alembic.
+
+Los respaldos se gestionan desde Supabase; ya no se crean archivos locales `.db`.
 
 ## 🐛 Solución de Problemas
 

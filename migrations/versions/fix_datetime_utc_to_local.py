@@ -24,18 +24,15 @@ def upgrade():
     
     conn = op.get_bind()
     
-    # For SQLite, use datetime() function with modifier
-    # Adjust Sale created_at timestamps
     conn.execute(sa.text("""
-        UPDATE sale 
-        SET created_at = datetime(created_at, '-5 hours')
+        UPDATE sale
+        SET created_at = created_at - INTERVAL '5 hours'
         WHERE created_at IS NOT NULL
     """))
     
-    # Adjust Payment created_at timestamps
     conn.execute(sa.text("""
-        UPDATE payment 
-        SET created_at = datetime(created_at, '-5 hours')
+        UPDATE payment
+        SET created_at = created_at - INTERVAL '5 hours'
         WHERE created_at IS NOT NULL
     """))
 
@@ -44,15 +41,14 @@ def downgrade():
     """Revert timestamps back to UTC (not recommended)."""
     conn = op.get_bind()
     
-    # This would revert the adjustment, but should only be used if reverting the code changes
     conn.execute(sa.text("""
-        UPDATE sale 
-        SET created_at = datetime(created_at, '+5 hours')
+        UPDATE sale
+        SET created_at = created_at + INTERVAL '5 hours'
         WHERE created_at IS NOT NULL
     """))
     
     conn.execute(sa.text("""
-        UPDATE payment 
-        SET created_at = datetime(created_at, '+5 hours')
+        UPDATE payment
+        SET created_at = created_at + INTERVAL '5 hours'
         WHERE created_at IS NOT NULL
     """))
