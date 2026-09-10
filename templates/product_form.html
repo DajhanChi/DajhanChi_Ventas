@@ -4,7 +4,13 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
-            <div class="flash-message {{ category }}" style="margin-bottom: 1rem; padding: 12px; border-radius: 8px; {% if category == 'error' %}background: #fee2e2; color: #991b1b; border-left: 4px solid #dc2626;{% elif category == 'success' %}background: #d1fae5; color: #065f46; border-left: 4px solid #10b981;{% else %}background: #dbeafe; color: #1e40af; border-left: 4px solid #3b82f6;{% endif %}">
+            {% if category == 'error' %}
+            <div class="flash-message {{ category }}" style="margin-bottom: 1rem; padding: 12px; border-radius: 8px; background: #fee2e2; color: #991b1b; border-left: 4px solid #dc2626;">
+            {% elif category == 'success' %}
+            <div class="flash-message {{ category }}" style="margin-bottom: 1rem; padding: 12px; border-radius: 8px; background: #d1fae5; color: #065f46; border-left: 4px solid #10b981;">
+            {% else %}
+            <div class="flash-message {{ category }}" style="margin-bottom: 1rem; padding: 12px; border-radius: 8px; background: #dbeafe; color: #1e40af; border-left: 4px solid #3b82f6;">
+            {% endif %}
                 {{ message }}
             </div>
         {% endfor %}
@@ -51,7 +57,7 @@
             <button type="submit" style="width: 100%;">✅ {{ "Actualizar Producto" if product else "Crear Producto" }}</button>
         </div>
         {% if is_ajax %}
-        <button type="button" class="button secondary" style="width: 100%; text-align: center;" onclick="if (typeof closeProductModal === 'function') { closeProductModal(); } else { window.location.href='{{ url_for('products') }}'; }">← Volver</button>
+        <button type="button" class="button secondary" style="width: 100%; text-align: center;" data-href="{{ url_for('products') }}" onclick="if (typeof closeProductModal === 'function') { closeProductModal(); } else { window.location.href=this.getAttribute('data-href'); }">← Volver</button>
         {% else %}
         <button type="button" class="button secondary" style="width: 100%; text-align: center;" data-href="{{ url_for('products') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver</button>
         {% endif %}

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>💳 Historial de pagos</h1>
+        <p style="color: #6b7280; margin: 4px 0 0 0;">Pagos reales registrados por cliente, fecha y venta</p>
+    </div>
+    <button type="button" class="button secondary" data-href="{{ url_for('debts') }}" onclick="window.location.href=this.getAttribute('data-href')">← Volver a Deudas</button>
+</div>
+
+<div class="card" style="display: grid; gap: 24px;">
+    <form method="get" style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end;">
+        <div class="form-group" style="margin: 0;">
+            <label for="customer">Buscar cliente</label>
+            <input type="text" id="customer" name="customer" value="{{ customer_filter_text }}" placeholder="Ej: Luana" autocomplete="off">
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button type="submit" class="button">Buscar</button>
+            <a href="{{ url_for('payments_history') }}" class="button secondary" style="display: inline-flex; align-items: center; text-decoration: none;">Limpiar</a>
+        </div>
+    </form>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+        <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 18px 20px; border-radius: 12px; border: 1px solid #bfdbfe;">
+            <div style="font-size: 12px; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700;">Clientes con pagos</div>
+            <div style="font-size: 30px; font-weight: 800; color: #1d4ed8; margin-top: 6px;">{{ payments_summary.customer_count }}</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 18px 20px; border-radius: 12px; border: 1px solid #a7f3d0;">
+            <div style="font-size: 12px; color: #065f46; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700;">Pagos mostrados</div>
+            <div style="font-size: 30px; font-weight: 800; color: #059669; margin-top: 6px;">{{ payments_summary.payment_count }}</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 18px 20px; border-radius: 12px; border: 1px solid #a7f3d0;">
+            <div style="font-size: 12px; color: #065f46; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700;">Total cobrado</div>
+            <div style="font-size: 30px; font-weight: 800; color: #059669; margin-top: 6px;">{{ payments_summary.total_cents | money }}</div>
+        </div>
+    </div>
+
+    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 18px 20px; border-radius: 12px; border: 1px solid #fcd34d;">
+            <div style="font-size: 12px; color: #92400e; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700;">Último pago</div>
+            <div style="font-size: 16px; font-weight: 800; color: #b45309; margin-top: 10px;">{% if payments_summary.latest_payment_at %}{{ payments_summary.latest_payment_at.strftime("%d/%m/%Y %H:%M") }}{% else %}Sin pagos{% endif %}</div>
+        </div>
+
+    {% if grouped_customers %}
+        <div style="display: grid; gap: 16px;">
+            {% for customer in grouped_customers %}
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.06);">
+                <div style="display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 18px 20px; background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%); border-bottom: 1px solid #e5e7eb;">
+                    <div>
+                        <h3 style="margin: 0; color: #111827; font-size: 20px;">{{ customer.customer_name }}</h3>
+                        <div style="margin-top: 4px; color: #6b7280; font-size: 13px;">{{ customer.payment_count }} pago{{ 's' if customer.payment_count != 1 else '' }} registrado{{ 's' if customer.payment_count != 1 else '' }}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700;">Total pagado</div>
+                        <div style="font-size: 24px; font-weight: 800; color: #059669;">{{ customer.total_paid_cents | money }}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Último: {% if customer.latest_payment_at %}{{ customer.latest_payment_at.strftime("%d/%m/%Y %H:%M") }}{% else %}-{% endif %}</div>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <div style="display: grid; gap: 12px; padding: 16px;">
+                        {% for date_group in customer.date_groups %}
+                        <div style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 16px; background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                <div>
+                                    <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700;">Fecha</div>
+                                    <div style="font-size: 16px; font-weight: 800; color: #111827;">{{ date_group.date_label }}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700;">Total del día</div>
+                                    <div style="font-size: 16px; font-weight: 800; color: #059669;">{{ date_group.total_paid_cents | money }}</div>
+                                </div>
+                            </div>
+
+                            <div style="overflow-x: auto; background: white;">
+                                <table style="width: 100%; border-collapse: collapse; background: white;">
+                                    <thead>
+                                        <tr style="background: #111827; color: white;">
+                                            <th style="padding: 14px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Hora</th>
+                                            <th style="padding: 14px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Venta</th>
+                                            <th style="padding: 14px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Método</th>
+                                            <th style="padding: 14px 16px; text-align: right; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Monto</th>
+                                            <th style="padding: 14px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Detalle</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in date_group.payments %}
+                                        {% set payment = row.payment %}
+                                        <tr style="border-top: 1px solid #e5e7eb; vertical-align: top;">
+                                            <td style="padding: 14px 16px; white-space: nowrap;">{{ payment.created_at.strftime("%H:%M") }}</td>
+                                            <td style="padding: 14px 16px;">#{{ payment.sale_id }}</td>
+                                            <td style="padding: 14px 16px;">
+                                                {% if payment.payment_method == 'efectivo' %}
+                                                    <span style="background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700;">💵 Efectivo</span>
+                                                {% elif payment.payment_method == 'yape' %}
+                                                    <span style="background: #dbeafe; color: #0c4a6e; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700;">📱 Yape</span>
+                                                {% else %}
+                                                    <span style="font-size: 12px; font-weight: 700;">{{ payment.payment_method }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="padding: 14px 16px; text-align: right; font-weight: 800; color: #059669;">{{ payment.amount_cents | money }}</td>
+                                            <td style="padding: 14px 16px; color: #6b7280;">
+                                                <div>{{ payment.notes or '-' }}</div>
+                                                {% if row.sale_items_summary %}
+                                                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #d1d5db; font-size: 12px; color: #374151;">
+                                                    <strong style="display: block; margin-bottom: 4px; color: #111827;">Productos de esa venta:</strong>
+                                                    {% for item in row.sale_items_summary %}
+                                                        <div>• {{ item.product_name }} x{{ item.qty }} <span style="color: #6b7280;">({{ item.line_total_cents | money }})</span></div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 36px 20px; background: #f9fafb; border-radius: 12px; border: 1px dashed #d1d5db; color: #6b7280;">
+            <div style="font-size: 18px; font-weight: 700; color: #111827;">No hay pagos que coincidan</div>
+            <div style="margin-top: 6px;">Prueba buscar otro cliente o limpia el filtro.</div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

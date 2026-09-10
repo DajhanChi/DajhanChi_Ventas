@@ -4,6 +4,7 @@
 .report-shell {
     display: grid;
     gap: 22px;
+    align-content: start;
 }
 
 .report-hero {
@@ -144,11 +145,11 @@
 }
 
 .table-shell {
-    border-radius: 16px;
-    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    border: 1px solid #dbe4f0;
     overflow: hidden;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1), 0 2px 8px rgba(30, 64, 175, 0.08);
 }
 
 .table-toolbar {
@@ -157,16 +158,59 @@
     align-items: center;
     gap: 16px;
     padding: 18px 22px;
-    border-bottom: 1px solid #e5e7eb;
-    background: #ffffff;
+    border-bottom: 1px solid #d9e4f1;
+    background: linear-gradient(120deg, #f8fbff 0%, #eef4ff 100%);
     flex-wrap: wrap;
 }
 
 .table-title {
     margin: 0;
+    color: #0b1324;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+.table-heading {
+    display: grid;
+    gap: 10px;
+}
+
+.customer-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.customer-search-input {
+    width: min(420px, 100%);
+    padding: 11px 13px;
+    border-radius: 10px;
+    border: 1px solid #c5d4e8;
+    background: #ffffff;
     color: #0f172a;
-    font-size: 17px;
-    font-weight: 800;
+    font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.customer-search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+    background: #ffffff;
+}
+
+.search-result-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e3a8a;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .table-subtitle {
@@ -177,6 +221,13 @@
 
 .table-meta {
     display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.toolbar-actions {
+    display: flex;
+    align-items: center;
     gap: 10px;
     flex-wrap: wrap;
 }
@@ -193,11 +244,34 @@
     font-weight: 700;
 }
 
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 10px;
+    text-decoration: none;
+    border: 1px solid #bbf7d0;
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    box-shadow: 0 6px 16px rgba(22, 163, 74, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.export-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(22, 163, 74, 0.35);
+}
+
 .table-wrap {
     max-height: 600px;
     overflow-y: auto;
     overflow-x: auto;
-    border-radius: 12px;
+    border-radius: 0 0 16px 16px;
+    background: #ffffff;
 }
 
 .table-wrap::-webkit-scrollbar {
@@ -230,7 +304,7 @@ table.debt-matrix thead th {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
     color: #ffffff;
     text-align: right;
     padding: 18px 16px;
@@ -260,14 +334,18 @@ table.debt-matrix tfoot td {
 
 table.debt-matrix tbody tr {
     background: #ffffff;
-    transition: all 0.2s ease;
+    transition: transform 0.18s ease, box-shadow 0.2s ease, background 0.2s ease;
     border-bottom: 1px solid #e5e7eb;
 }
 
+table.debt-matrix tbody tr:nth-child(even) {
+    background: #f8fbff;
+}
+
 table.debt-matrix tbody tr:hover {
-    background: #f9fafb;
-    transform: translateX(2px);
-    box-shadow: -4px 0 0 0 #3b82f6, 0 2px 8px rgba(0, 0, 0, 0.08);
+    background: #eef5ff;
+    transform: translateX(3px);
+    box-shadow: -4px 0 0 0 #2563eb, 0 6px 18px rgba(30, 64, 175, 0.14);
 }
 
 table.debt-matrix tbody td:first-child,
@@ -299,14 +377,14 @@ table.debt-matrix tfoot td:first-child {
     justify-content: flex-end;
     min-width: 0;
     max-width: 100%;
-    padding: 7px 10px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    color: #1e40af;
+    padding: 8px 11px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #e0ecff 0%, #c8dcff 100%);
+    color: #1d3b8c;
     font-weight: 700;
     white-space: normal;
     word-break: break-word;
-    border: 1px solid #93c5fd;
+    border: 1px solid #9dbcf9;
 }
 
 .amount-link {
@@ -316,7 +394,7 @@ table.debt-matrix tfoot td:first-child {
 
 .amount-link:hover .amount-pill {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.22);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.26);
 }
 
 .cell-zero {
@@ -331,9 +409,9 @@ table.debt-matrix tfoot td:first-child {
 
 .col-total .amount-pill,
 .total-amount {
-    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+    background: linear-gradient(135deg, #d8fae5 0%, #baf3d4 100%);
     color: #065f46;
-    border-color: #a7f3d0;
+    border-color: #8be2ba;
 }
 
 tfoot td {
@@ -341,14 +419,14 @@ tfoot td {
     bottom: 0;
     z-index: 6;
     font-weight: 800;
-    background: #f9fafb;
-    border-top: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #e8f8ef 0%, #d4f3e1 100%);
+    border-top: 1px solid #b9e8cf;
     border-bottom: none;
 }
 
 tfoot td:first-child {
     z-index: 7;
-    background: #f9fafb;
+    background: linear-gradient(135deg, #e8f8ef 0%, #d4f3e1 100%);
 }
 
 .empty-report {
@@ -364,6 +442,16 @@ tfoot td:first-child {
 .empty-report h3 {
     margin: 0 0 8px 0;
     color: #0f172a;
+}
+
+.search-empty-state {
+    display: none;
+    padding: 18px 14px;
+    text-align: center;
+    color: #64748b;
+    font-weight: 600;
+    border-top: 1px solid #e5e7eb;
+    background: #f8fafc;
 }
 
 @media (max-width: 980px) {
@@ -394,30 +482,29 @@ tfoot td:first-child {
 </style>
 
 <div class="report-shell">
-    <section class="report-hero animate-card-pop">
-        <div class="report-hero-top">
-            <div>
-                <div class="report-kicker">Cartera consolidada</div>
-                <h1>Reporte Integral de Deuda por Cliente</h1>
-            </div>
-            <div class="hero-note">
-                <div class="hero-note-label">Corte actual</div>
-                <div class="hero-note-value">{{ rows|length }} clientes</div>
-                <div class="hero-note-caption">Base viva de cuentas pendientes por cobrar.</div>
-            </div>
-        </div>
-    </section>
-
     {% if rows %}
     <div class="table-shell animate-slide-up">
         <div class="table-toolbar">
-            <div>
+            <div class="table-heading">
                 <h2 class="table-title">Matriz general de deuda</h2>
+                <div class="customer-search-wrap">
+                    <input
+                        id="customerDebtSearch"
+                        class="customer-search-input"
+                        type="search"
+                        placeholder="Buscar cliente por nombre..."
+                        autocomplete="off"
+                    />
+                    <span id="searchResultCount" class="search-result-chip">{{ rows|length }} resultados</span>
+                </div>
             </div>
-            <div class="table-meta">
-                <div class="meta-chip">{{ rows|length }} clientes analizados</div>
-                <div class="meta-chip">{{ users|length }} columnas por usuario</div>
-                <div class="meta-chip">Saldo total {{ total_debt_cents|money }}</div>
+            <div class="toolbar-actions">
+                <div class="table-meta">
+                    <div class="meta-chip">{{ rows|length }} clientes analizados</div>
+                    <div class="meta-chip">{{ users|length }} columnas por usuario</div>
+                    <div class="meta-chip">Saldo total {{ total_debt_cents|money }}</div>
+                </div>
+                <a class="export-btn" href="{{ url_for('reports_debts_matrix_export') }}">Exportar a Excel</a>
             </div>
         </div>
         <div class="table-wrap">
@@ -475,6 +562,7 @@ tfoot td:first-child {
                 </tfoot>
             </table>
         </div>
+        <div id="searchEmptyState" class="search-empty-state">No se encontraron clientes con ese nombre.</div>
     </div>
     {% else %}
     <div class="empty-report animate-card-pop">
@@ -483,4 +571,47 @@ tfoot td:first-child {
     </div>
     {% endif %}
 </div>
+
+<script>
+(function () {
+    const searchInput = document.getElementById('customerDebtSearch');
+    const resultCount = document.getElementById('searchResultCount');
+    const emptyState = document.getElementById('searchEmptyState');
+    const table = document.querySelector('table.debt-matrix');
+
+    if (!searchInput || !resultCount || !emptyState || !table) {
+        return;
+    }
+
+    const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+
+    function normalizeText(value) {
+        return (value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function updateFilter() {
+        const term = normalizeText(searchInput.value.trim());
+        let visible = 0;
+
+        bodyRows.forEach((row) => {
+            const nameCell = row.querySelector('.customer-label');
+            const customerName = normalizeText(nameCell ? nameCell.textContent : '');
+            const matches = term === '' || customerName.includes(term);
+
+            row.style.display = matches ? '' : 'none';
+            if (matches) {
+                visible += 1;
+            }
+        });
+
+        resultCount.textContent = visible + (visible === 1 ? ' resultado' : ' resultados');
+        emptyState.style.display = visible === 0 ? 'block' : 'none';
+    }
+
+    searchInput.addEventListener('input', updateFilter);
+})();
+</script>
 {% endblock %}

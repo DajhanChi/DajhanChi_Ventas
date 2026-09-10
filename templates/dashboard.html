@@ -339,11 +339,11 @@
         <span class="quick-action-icon">📦</span>
         <span>Agregar Producto</span>
     </button>
-    <button type="button" onclick="window.location.href='{{ url_for('debts') }}'" class="quick-action-btn animate-fade-in" style="animation-delay: 0.2s;">
+    <button type="button" onclick="navigateTo(this)" data-href="{{ url_for('debts') }}" class="quick-action-btn animate-fade-in" style="animation-delay: 0.2s;">
         <span class="quick-action-icon">🧾</span>
         <span>Ver Deudas</span>
     </button>
-    <button type="button" onclick="window.location.href='{{ url_for('reports') }}'" class="quick-action-btn animate-fade-in" style="animation-delay: 0.3s;">
+    <button type="button" onclick="navigateTo(this)" data-href="{{ url_for('reports') }}" class="quick-action-btn animate-fade-in" style="animation-delay: 0.3s;">
         <span class="quick-action-icon">📊</span>
         <span>Reportes</span>
     </button>
@@ -362,7 +362,7 @@
         {% endif %}
         {% for day in daily_sales %}
         <div class="bar-item">
-            <div class="bar" style="height: {{ ((day.total / max_sale) * 100) if day.total > 0 else 5 }}%;">
+            <div class="bar" data-height="{{ ((day.total / max_sale) * 100) if day.total > 0 else 5 }}">
                 {% if day.total > 0 %}
                 <div class="bar-value">${{ "%.0f" | format(day.total) }}</div>
                 {% endif %}
@@ -664,6 +664,13 @@ function keepElementVisible(element, extraBottomSpace = 0) {
         scrollParent.scrollBy({ top: overBottom + 12, behavior: 'smooth' });
     } else if (overTop > 0) {
         scrollParent.scrollBy({ top: -(overTop + 12), behavior: 'smooth' });
+    }
+}
+
+function navigateTo(element) {
+    const target = element ? element.getAttribute('data-href') : '';
+    if (target) {
+        window.location.href = target;
     }
 }
 
@@ -1019,6 +1026,14 @@ function calcularCostoModalNuevo() {
     }
 }
 
+function initializeDailySalesBars() {
+    document.querySelectorAll('.bar[data-height]').forEach(function(bar) {
+        const value = parseFloat(bar.dataset.height || '0');
+        const safeValue = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+        bar.style.height = safeValue + '%';
+    });
+}
+
 // Cerrar modales con ESC
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
@@ -1029,6 +1044,7 @@ document.addEventListener('keydown', function(event) {
 
 // Cerrar modales al hacer clic fuera
 document.addEventListener('DOMContentLoaded', function() {
+    initializeDailySalesBars();
     startDashboardAutoRefresh();
 
     document.addEventListener('visibilitychange', function() {

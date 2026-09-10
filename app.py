@@ -3,10 +3,12 @@ import sqlite3
 import threading
 import time
 import json
+import importlib
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
+from io import BytesIO
 
 from dotenv import load_dotenv
 
@@ -1364,6 +1366,104 @@ def debt_customer_receipt():
     )
 
 
+@app.route("/debts/payments")
+@login_required
+@require_permission("debts")
+def payments_history():
+    user_id = session.get("user_id")
+    customer_filter_text = request.args.get("customer", "").strip()
+    recent_payments_query = (
+        Payment.query.join(Sale)
+        .filter(Sale.user_id == user_id)
+        .options(
+            db.joinedload(Payment.sale).joinedload(Sale.items).joinedload(SaleItem.product)
+        )
+        .order_by(Payment.created_at.desc())
+    )
+
+    recent_payments = recent_payments_query.limit(300).all()
+    grouped_by_customer = {}
+    for payment in recent_payments:
+        sale = payment.sale
+        customer_name = (sale.customer_name or "Sin nombre").strip() if sale else "Sin nombre"
+        if customer_filter_text and customer_filter_text.lower() not in customer_name.lower():
+            continue
+
+        customer_key = customer_name.lower()
+        customer_group = grouped_by_customer.setdefault(customer_key, {
+            "customer_name": customer_name,
+            "total_paid_cents": 0,
+            "payment_count": 0,
+            "latest_payment_at": None,
+            "payments": [],
+        })
+
+        sale_items_summary = []
+        if sale and sale.items:
+            for item in sale.items:
+                product_name = item.product.name if item.product else "Producto eliminado"
+                sale_items_summary.append({
+                    "product_name": product_name,
+                    "qty": item.qty,
+                    "line_total_cents": item.line_total_cents,
+                })
+
+        customer_group["total_paid_cents"] += payment.amount_cents or 0
+        customer_group["payment_count"] += 1
+        if not customer_group["latest_payment_at"] or payment.created_at > customer_group["latest_payment_at"]:
+            customer_group["latest_payment_at"] = payment.created_at
+
+        customer_group["payments"].append({
+            "payment": payment,
+            "sale_items_summary": sale_items_summary,
+            "payment_date": payment.created_at.date(),
+            "payment_date_label": payment.created_at.strftime("%d/%m/%Y"),
+        })
+
+    grouped_customers = []
+    for customer_group in grouped_by_customer.values():
+        payments_by_date = {}
+        for payment_row in customer_group["payments"]:
+            date_key = payment_row["payment_date"]
+            date_group = payments_by_date.setdefault(date_key, {
+                "date_key": date_key,
+                "date_label": payment_row["payment_date_label"],
+                "total_paid_cents": 0,
+                "payments": [],
+            })
+            date_group["total_paid_cents"] += payment_row["payment"].amount_cents or 0
+            date_group["payments"].append(payment_row)
+
+        customer_group["date_groups"] = sorted(
+            payments_by_date.values(),
+            key=lambda group: group["date_key"],
+            reverse=True,
+        )
+        grouped_customers.append(customer_group)
+
+    grouped_customers = sorted(
+        grouped_customers,
+        key=lambda group: group["latest_payment_at"] or datetime.min,
+        reverse=True,
+    )
+
+    shown_payments = [payment_row["payment"] for customer_group in grouped_customers for date_group in customer_group["date_groups"] for payment_row in date_group["payments"]]
+
+    payments_summary = {
+        "customer_count": len(grouped_customers),
+        "payment_count": len(shown_payments),
+        "total_cents": sum((payment.amount_cents or 0) for payment in shown_payments),
+        "latest_payment_at": shown_payments[0].created_at if shown_payments else None,
+    }
+
+    return render_template(
+        "payments_history.html",
+        customer_filter_text=customer_filter_text,
+        grouped_customers=grouped_customers,
+        payments_summary=payments_summary,
+    )
+
+
 @app.route("/reports/debts-matrix/receipt")
 @login_required
 @require_permission("reports")
@@ -1624,10 +1724,7 @@ def reports():
     )
 
 
-@app.route("/reports/debts-matrix")
-@login_required
-@require_permission("reports")
-def reports_debts_matrix():
+def _build_debts_matrix_data():
     debts = (
         db.session.query(
             db.func.coalesce(Sale.customer_name, "").label("customer_name"),
@@ -1681,17 +1778,198 @@ def reports_debts_matrix():
     top_customers = sorted(rows, key=lambda r: r["total_debt_cents"], reverse=True)[:10]
     top_users = sorted(debt_by_user.items(), key=lambda item: item[1], reverse=True)
 
+    return {
+        "users": users,
+        "rows": rows,
+        "total_debt_cents": total_debt_cents,
+        "total_customers": len(rows),
+        "total_users": len(users),
+        "debt_by_user": debt_by_user,
+        "top_customers": top_customers,
+        "top_users": top_users,
+    }
+
+
+@app.route("/reports/debts-matrix")
+@login_required
+@require_permission("reports")
+def reports_debts_matrix():
+    matrix_data = _build_debts_matrix_data()
+
     return render_template(
         "debts_matrix_report.html",
-        users=users,
-        rows=rows,
-        total_debt_cents=total_debt_cents,
-        total_customers=len(rows),
-        total_users=len(users),
-        debt_by_user=debt_by_user,
-        top_customers=top_customers,
-        top_users=top_users,
+        users=matrix_data["users"],
+        rows=matrix_data["rows"],
+        total_debt_cents=matrix_data["total_debt_cents"],
+        total_customers=matrix_data["total_customers"],
+        total_users=matrix_data["total_users"],
+        debt_by_user=matrix_data["debt_by_user"],
+        top_customers=matrix_data["top_customers"],
+        top_users=matrix_data["top_users"],
     )
+
+
+@app.route("/reports/debts-matrix/export")
+@login_required
+@require_permission("reports")
+def reports_debts_matrix_export():
+    openpyxl = importlib.import_module("openpyxl")
+    styles = importlib.import_module("openpyxl.styles")
+    utils = importlib.import_module("openpyxl.utils")
+    table_module = importlib.import_module("openpyxl.worksheet.table")
+
+    Workbook = openpyxl.Workbook
+    Alignment = styles.Alignment
+    Border = styles.Border
+    Font = styles.Font
+    PatternFill = styles.PatternFill
+    Side = styles.Side
+    get_column_letter = utils.get_column_letter
+    Table = table_module.Table
+    TableStyleInfo = table_module.TableStyleInfo
+
+    matrix_data = _build_debts_matrix_data()
+    users = matrix_data["users"]
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Deuda general"
+
+    headers = ["Cliente", *users, "Total deuda"]
+    user_count = len(users)
+    max_col = len(headers)
+    last_col_letter = get_column_letter(max_col)
+    first_user_col_letter = get_column_letter(2)
+    last_user_col_letter = get_column_letter(max_col - 1) if user_count > 0 else None
+    title = "REPORTE DE DEUDA GENERAL"
+
+    sheet.merge_cells(f"A1:{last_col_letter}1")
+    sheet["A1"] = title
+    sheet["A1"].font = Font(name="Calibri", size=15, bold=True, color="FFFFFF")
+    sheet["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    sheet["A1"].fill = PatternFill(fill_type="solid", fgColor="0F172A")
+
+    sheet.merge_cells(f"A2:{last_col_letter}2")
+    sheet["A2"] = f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')} | Clientes: {matrix_data['total_customers']} | Vendedores: {matrix_data['total_users']}"
+    sheet["A2"].font = Font(name="Calibri", size=11, color="334155")
+    sheet["A2"].alignment = Alignment(horizontal="center", vertical="center")
+    sheet["A2"].fill = PatternFill(fill_type="solid", fgColor="E2E8F0")
+
+    summary_row = 3
+    table_start_row = 5
+    data_start_row = table_start_row + 1
+
+    sheet.cell(row=summary_row, column=1, value="Saldo total cartera")
+    sheet.merge_cells(start_row=summary_row, start_column=2, end_row=summary_row, end_column=max_col - 1)
+    summary_value_cell = sheet.cell(row=summary_row, column=max_col, value=f"=SUM({last_col_letter}{data_start_row}:{last_col_letter}{data_start_row})")
+    sheet.cell(row=summary_row, column=1).font = Font(name="Calibri", size=11, bold=True, color="0F172A")
+    sheet.cell(row=summary_row, column=1).fill = PatternFill(fill_type="solid", fgColor="E2E8F0")
+    sheet.cell(row=summary_row, column=1).alignment = Alignment(horizontal="left", vertical="center")
+    summary_value_cell.font = Font(name="Calibri", size=12, bold=True, color="065F46")
+    summary_value_cell.fill = PatternFill(fill_type="solid", fgColor="DCFCE7")
+    summary_value_cell.number_format = '"$"#,##0.00'
+    summary_value_cell.alignment = Alignment(horizontal="right", vertical="center")
+
+    for idx, header in enumerate(headers, start=1):
+        header_cell = sheet.cell(row=table_start_row, column=idx, value=header)
+        header_cell.font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        header_cell.fill = PatternFill(fill_type="solid", fgColor="1E293B")
+        header_cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    current_row = data_start_row
+    for row in matrix_data["rows"]:
+        sheet.cell(row=current_row, column=1, value=row["customer_name"])
+        for idx, username in enumerate(users, start=2):
+            debt_cents = row["debts_by_user"].get(username, 0)
+            cell = sheet.cell(row=current_row, column=idx, value=debt_cents / 100)
+            cell.number_format = '"$"#,##0.00'
+        if user_count > 0:
+            total_formula = f"=SUM({first_user_col_letter}{current_row}:{last_user_col_letter}{current_row})"
+        else:
+            total_formula = "=0"
+        total_cell = sheet.cell(row=current_row, column=max_col, value=total_formula)
+        total_cell.number_format = '"$"#,##0.00'
+        current_row += 1
+
+    total_row_idx = current_row
+    sheet.cell(row=total_row_idx, column=1, value="Total general")
+    has_data_rows = total_row_idx > data_start_row
+    for idx, _ in enumerate(headers[1:], start=2):
+        col_letter = get_column_letter(idx)
+        if has_data_rows:
+            total_formula = f"=SUBTOTAL(109,{col_letter}{data_start_row}:{col_letter}{total_row_idx - 1})"
+        else:
+            total_formula = "=0"
+        cell = sheet.cell(row=total_row_idx, column=idx, value=total_formula)
+        cell.number_format = '"$"#,##0.00'
+    summary_value_cell.value = f"={last_col_letter}{total_row_idx}"
+
+    thin_border = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="thin", color="CBD5E1"),
+    )
+
+    for row_idx in range(table_start_row, total_row_idx + 1):
+        for col_idx in range(1, max_col + 1):
+            cell = sheet.cell(row=row_idx, column=col_idx)
+            cell.border = thin_border
+            if col_idx == 1:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+                cell.number_format = '"$"#,##0.00'
+
+    for col_idx in range(1, max_col + 1):
+        total_cell = sheet.cell(row=total_row_idx, column=col_idx)
+        total_cell.fill = PatternFill(fill_type="solid", fgColor="0F766E")
+        total_cell.font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+
+    table_ref = f"A{table_start_row}:{last_col_letter}{max(total_row_idx - 1, table_start_row + 1)}"
+    debt_table = Table(displayName="DeudaGeneral", ref=table_ref)
+    debt_table.tableStyleInfo = TableStyleInfo(
+        name="TableStyleMedium9",
+        showFirstColumn=False,
+        showLastColumn=False,
+        showRowStripes=True,
+        showColumnStripes=False,
+    )
+    sheet.add_table(debt_table)
+
+    sheet.freeze_panes = f"B{data_start_row}"
+
+    sheet.row_dimensions[1].height = 30
+    sheet.row_dimensions[2].height = 22
+    sheet.row_dimensions[3].height = 22
+    sheet.row_dimensions[table_start_row].height = 24
+
+    for col_idx in range(1, max_col + 1):
+        max_length = 0
+        col_letter = get_column_letter(col_idx)
+        for row_idx in range(table_start_row, total_row_idx + 1):
+            value = sheet.cell(row=row_idx, column=col_idx).value
+            display_text = "" if value is None else str(value)
+            max_length = max(max_length, len(display_text))
+
+        if col_idx == 1:
+            sheet.column_dimensions[col_letter].width = min(max(24, max_length + 3), 42)
+        else:
+            sheet.column_dimensions[col_letter].width = min(max(14, max_length + 4), 22)
+
+    sheet.page_setup.orientation = "landscape"
+    sheet.page_setup.fitToWidth = 1
+    sheet.page_setup.fitToHeight = 0
+
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    response.headers["Content-Disposition"] = f"attachment; filename=deuda-general-{timestamp}.xlsx"
+    return response
 
 
 

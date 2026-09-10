@@ -203,6 +203,22 @@
     background: #fee2e2;
     color: #7f1d1d;
 }
+
+.metric-value.profit-positive {
+    color: #10b981;
+}
+
+.metric-value.profit-negative {
+    color: #ef4444;
+}
+
+tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+tbody tr:hover {
+    background-color: #f9fafb;
+}
 </style>
 
 <div class="page-head">
@@ -227,9 +243,9 @@
     </div>
 
     <div class="metric-card orange animate-card-pop animate-stagger-3">
-        <div class="metric-label">📅 Este Mes</div>
+        <div class="metric-label">📅 Este mes</div>
         <div class="metric-value">{{ "%.2f"|format(total_sales_month / 100) }} $</div>
-        <div class="metric-subtitle">Desde el 1° del mes</div>
+        <div class="metric-subtitle">Desde el 1.° del mes</div>
     </div>
 
     <div class="metric-card purple animate-card-pop animate-stagger-4">
@@ -246,7 +262,7 @@
 
     <div class="metric-card blue animate-card-pop animate-stagger-6">
         <div class="metric-label">💹 Ganancia Bruta (Hoy)</div>
-        <div class="metric-value" style="color: {% if today_gross_profit >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+        <div class="metric-value {% if today_gross_profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
             {{ "%.2f"|format(today_gross_profit / 100) }} $
         </div>
         <div class="metric-subtitle">
@@ -319,9 +335,9 @@
             {% for method, count, total in payment_methods %}
             <div class="item-row">
                 <div>
-                    <div class="item-name">{{ method or 'No especificado' }}</div>
+                    <div class="item-name">{{ method or "No especificado" }}</div>
                     <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">
-                        {{ count }} transacción{{ 's' if count != 1 else '' }}
+                        {{ count }} transacción{{ "s" if count != 1 else "" }}
                     </div>
                 </div>
                 <span class="item-value">{{ "%.2f"|format(total / 100) }} $</span>
@@ -356,19 +372,19 @@
             </thead>
             <tbody>
             {% for sale in recent_sales %}
-                <tr style="border-bottom: 1px solid #f3f4f6; transition: all 0.2s ease;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+                <tr style="border-bottom: 1px solid #f3f4f6;">
                     <td style="padding: 12px; font-size: 13px;">
-                        {{ sale.created_at.strftime('%d/%m/%Y %H:%M') }}
+                        {{ sale.created_at.strftime("%d/%m/%Y %H:%M") }}
                     </td>
                     <td style="padding: 12px; font-size: 13px; font-weight: 600;">
                         {{ sale.customer_name }}
                     </td>
                     <td style="padding: 12px; text-align: center; font-size: 13px; color: #3b82f6; font-weight: 600;">
-                        {{ sale.items | length }} {{ 'item' if sale.items | length == 1 else 'items' }}
+                        {{ sale.items | length }} {{ "item" if sale.items | length == 1 else "items" }}
                     </td>
                     <td style="padding: 12px; font-size: 13px;">
                         <span style="background: #eff6ff; color: #3b82f6; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 11px;">
-                            {{ sale.payment_method or '—' }}
+                            {{ sale.payment_method or "—" }}
                         </span>
                     </td>
                     <td style="padding: 12px; text-align: right; font-weight: 700; color: #10b981; font-size: 13px;">
